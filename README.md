@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/timeline.png" width="900"/>
+</p>
+
 # centgovspend
 
 [![Generic badge](https://img.shields.io/badge/Python-3.6-<red>.svg)](https://shields.io/)  [![Generic badge](https://img.shields.io/badge/License-MIT-blue.svg)](https://shields.io/)  [![Generic badge](https://img.shields.io/badge/Maintained-Yes-green.svg)](https://shields.io/)
@@ -10,7 +14,7 @@ This is a repo for scraping, parsing and automatically reconciling ministerial a
 
 #### Install and Run
 
-The only requirement is an installation of Python 3, and the only dependancy is unidecode (```pip install unidecode```). To run: [download a zip](https://github.com/crahal/centgovspend/archive/master.zip) of this repository or `git clone github.com/crahal/centgovspend/`. All that's then required is running
+The only requirement is an installation of Python 3, and the only dependancies are [unidecode](https://pypi.org/project/Unidecode/), [BeautifuLSoup4](https://pypi.org/project/beautifulsoup4/) and [ratelimit](https://pypi.org/project/ratelimit/). To run: [download a zip](https://github.com/crahal/centgovspend/archive/master.zip) of this repository or `git clone github.com/crahal/centgovspend/`. All that's then required is running
 
 ```python centgovspend.py [options]```
 
@@ -34,6 +38,9 @@ There are a range of options (all optional) to include in the execution of the a
 
 The file ```clean_matches.py``` provides a fuction for post-processing of the matches. The first option ( ```type == 'automated_safe'```) automatically accepts any match which has a score greater than 70 and which does not have a second highest match score within 10 points of it.  The second option (```type == 'manual_verification'```) automatically rejects all matches below a score of 20, accepts all above 70, and asks for manual verification of those inbetween.
 
+<p align="center">
+  <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/mostmatch_and_safematch.png" width="700"/>
+</p>
 
 #### License
 This work is free. You can redistribute it and/or modify it under the terms of the MIT license. This license does not apply to any input or output data processed.
