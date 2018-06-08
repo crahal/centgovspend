@@ -34,7 +34,13 @@ There are a range of options (all optional) to include in the execution of the a
 
 * `noreconcile`        : don't reconcile via opencorporates and companieshouse (default = do it)
 
-#### Reconciliations
+#### Reconciliations and Summary Statistics
+
+```
+We matched 1973950 out of 2751185 payments in total (71.75%).
+We matched £213552680169 out of £1003640600205 value in total (21%).
+We matched 27551 out of 60611 unique suppliers in total (45.46%).
+```
 
 The file ```clean_matches.py``` provides a fuction for post-processing of the matches. The first option ( ```type == 'automated_safe'```) automatically accepts any match which has a score greater than 70 and which does not have a second highest match score within 10 points of it.  The second option (```type == 'manual_verification'```) automatically rejects all matches below a score of 20, accepts all above 70, and asks for manual verification of those inbetween.
 
