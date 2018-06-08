@@ -24,12 +24,9 @@ There are a range of options (all optional) to include in the execution of the a
 
 * `depttype=nonministerial` : only scrape/parse nonministerial depts
 
-* `depttype=both`           : default
-
 * `cleanrun`                : delete all subdirectories before running (default = off)
-* `noscrape`                : dont scrape any new data (incompatabile with cleanrun, default off)
 
-* `noopencorporates`        : dont match and merge with the packaged opencorporates database (default = do it)
+* `noscrape`                : dont scrape any new data (incompatabile with cleanrun, default off)
 
 * `noreconcile`        : don't reconcile via opencorporates and companieshouse (default = do it)
 
