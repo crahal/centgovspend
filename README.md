@@ -55,7 +55,7 @@ The file ```clean_matches.py``` provides a fuction for post-processing of the ma
 3. Upload a presentation.tex into Compile/Presentations.
 4. Put a preprint up onto SocArXiv.
 
-*Next update of scrapers: 01/07/2018*
+*Next update of scrapers: 15/11/2018*
 
 
 #### License
