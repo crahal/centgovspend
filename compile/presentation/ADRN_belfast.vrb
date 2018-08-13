@@ -1,0 +1,23 @@
+\frametitle{Manual Verification and Automated Safematch Algorithms}
+\begin{figure}
+\centering
+\begin{subfigure}{.5\textwidth}
+  \centering
+    \caption{Manual Verification}
+  \includegraphics[width=.8\linewidth]{image1-0.png}
+  \label{fig:sub1}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \centering
+    \caption{Automated Safematch}
+  \includegraphics[width=.8\linewidth]{image1-1.png}
+  \label{fig:sub2}
+\end{subfigure}
+\label{fig:test}
+\end{figure}\scriptsize
+We provide two functions for verifying the OC matches. From \texttt{automated safematch}:
+\begin{verbatim}
+    We matched 1443852 out of 2719026 payments in total (53.1%).
+    We matched £118869981782 out of £998678528765 value in total 11%).
+    We matched 18963 out of 60597 unique suppliers in total (31.29%).
+\end{verbatim}

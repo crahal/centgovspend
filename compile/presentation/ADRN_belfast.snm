@@ -1,0 +1,14 @@
+\beamer@slide {fig:test1}{1}
+\beamer@slide {fig:test2}{1}
+\beamer@slide {fig:sub1}{9}
+\beamer@slide {sub@fig:sub1}{9}
+\beamer@slide {fig:sub2}{9}
+\beamer@slide {sub@fig:sub2}{9}
+\beamer@slide {fig:test}{9}
+\beamer@slide {my-label}{11}
+\beamer@slide {my-label}{12}
+\beamer@slide {fig:sub1}{14}
+\beamer@slide {sub@fig:sub1}{14}
+\beamer@slide {fig:sub2}{14}
+\beamer@slide {sub@fig:sub2}{14}
+\beamer@slide {fig:test}{14}
