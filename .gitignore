@@ -1,0 +1,10 @@
+debug.log
+compile/old_paper/
+compile/paper/
+data/output/
+data/raw/
+data/companies_house/
+src/ch_apikey
+src/rsync_command.sh
+src/__pycache__/
+src/.ipynb_checkpoints/
