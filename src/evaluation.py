@@ -2,50 +2,17 @@ import os
 import pandas as pd
 
 
-def remove_redacted(df):
-    poss_redacts = ['redacted', 'redaction', 'xxxxxx', 'named individual',
-                    'personal expense', 'name withheld']
-    initial = len(df)
-    valuefull = df['amount'].sum()
-    numsups = len(df['supplier'].unique())
-    df['expensetype'] = df['expensetype'].astype(str)
-    df['expensearea'] = df['expensearea'].astype(str)
-    for term in poss_redacts:
-        df = df[~df['supplier'].str.lower().str.contains(term)]
-        df = df[~df['expensetype'].str.lower().str.contains(term)]
-        df = df[~df['expensearea'].str.lower().str.contains(term)]
-    print('Dropped ' + str(initial - len(df)) +
-          ' redacted payments')
-    print('Dropped redacted payments worth £' +
-          str(valuefull - df['amount'].sum()))
-    print('We identified ' +
-          str(numsups -
-              len(df['supplier'].unique())) +
-          ' redacted Suppliers')
-    return df
-
-
-def remove_various(df):
-    initial = len(df)
-    numsups = len(df['supplier'].unique())
-    valuefull = df['amount'].sum()
-    df['supplier'] = df['supplier'].str.strip()
-    df = df[df['supplier'].str.lower() != 'various']
-    print('Dropped ' + str(initial - len(df)) +
-          ' "various" payments')
-    print('Dropped "various" payments worth £' +
-          str(valuefull - df['amount'].sum()))
-    print('We identified ' +
-          str(numsups - len(df['supplier'].unique())) +
-          ' "various" Suppliers')
-    return df
-
-
 def evaluate_and_clean_merge(df, rawpath):
 
     df = df.reset_index().drop('index', axis=1)
-    print('\n** Evaluating the merged ' + ' Dataset!**')
-    print('** We have ' + str(len(df)) + ' total rows of data to begin.')
+    print('\n** Evaluating the merged dataset and' +
+          ' sequentially cleaning it!**')
+    print('** We have ' + str(len(df)) +
+          ' total rows of payments data to begin with.')
+    print('** We have £' + str(round(df['amount'].sum()/1000000000, 2)) +
+          'bn worth of data to begin with.')
+    print('** We have ' + str(len(df['supplier'].unique())) +
+          ' unique suppliers to begin with.')
     originallength = len(df)
     df['amount'] = pd.to_numeric(df['amount'], errors='coerce')
     df = df[~pd.isnull(df['amount'])]
@@ -56,27 +23,74 @@ def evaluate_and_clean_merge(df, rawpath):
     df = df[df['supplier'].str.len() > 3]
     df = df[(df['supplier'].notnull()) &
             (df['amount'].notnull())]
-    print('We lose ' + str(originallength - len(df)) +
-          ' rows due to nulls in supplier or amount or bad dates.')
-    df = remove_redacted(df)
-    df = remove_various(df)
+    print('Dropped ' + str(originallength - len(df)) +
+          ' rows due bad supplier, amount or dates.')
+
+    originallength = len(df)
+    poss_redacts = ['redacted', 'redaction', 'xxxxxx', 'named individual',
+                    'personal expense', 'name withheld', 'name removed']
+    initial = len(df)
+    valuefull = df['amount'].sum()
+    numsups = len(df['supplier'].unique())
+    df['expensetype'] = df['expensetype'].astype(str)
+    df['expensetype'] = df['expensetype'].str.lower()
+    df['expensetype'] = df['expensetype'].str.strip()
+    df['expensetype'] = df['expensearea'].astype(str)
+    df['expensetype'] = df['expensearea'].str.lower()
+    df['expensetype'] = df['expensearea'].str.strip()
+    df['supplier'] = df['supplier'].astype(str)
+    df['supplier'] = df['supplier'].str.strip()
+    for term in poss_redacts:
+        df = df[~df['supplier'].str.contains(term, na=False)]
+        df = df[~df['expensetype'].str.contains(term, na=False)]
+        df = df[~df['expensearea'].str.contains(term, na=False)]
+    print('Dropped ' + str(initial - len(df)) +
+          ' redacted payments.')
+    print('Dropped redacted payments worth £' +
+          str(round((valuefull - df['amount'].sum())/1000000000, 2)) + 'bn.')
+    print('We identified ' +
+          str(numsups - len(df['supplier'].unique())) +
+          ' unique redacted supplier variations.')
+
+    initial = len(df)
+    valuefull = df['amount'].sum()
+    df = df[df['amount'] >= 25000]
+    print('Dropped ' + str(initial - len(df)) +
+          ' payments below £25k in value.')
+    print('Dropped £' +
+          str(round((valuefull - df['amount'].sum())/1000000000, 2)) +
+          'bn worth of payments below £25k in value.')
+
+    initial = len(df)
+    numsups = len(df['supplier'].unique())
+    valuefull = df['amount'].sum()
+    df = df[df['supplier'].str.lower() != 'various']
+    print('Dropped ' + str(initial - len(df)) +
+          ' "various" payments.')
+    print('Dropped "various" payments worth £' +
+          str(round((valuefull - df['amount'].sum())/1000000000, 2)) + 'bn.')
+    print('We identified ' +
+          str(numsups - len(df['supplier'].unique())) +
+          ' unique "various" supplier strings.')
+
     cols_to_consider = ['amount', 'date', 'dept', 'expensearea',
                         'expensetype', 'transactionnumber', 'supplier']
     grouped = df.groupby(cols_to_consider)
     index = [gp_keys[0] for gp_keys in grouped.groups.values()]
     df_clean = df.reindex(index)
-    print('** Dropping ' + str(len(df) - len(df_clean)) +
-          ' potential duplicates')
-    print('** This spending totals £' +
-          str(round(df_clean['amount'].sum() /
-                    1000000000, 2)) + 'billion.')
-    print('** We merge from across ' +
-          str(len(df_clean['dept'].unique())) + ' departments.')
+    print('Dropped ' + str(len(df) - len(df_clean)) + ' potential duplicates')
+    print('Dropped duplicates worth £' + str(round(df_clean['amount'].sum() /
+          1000000000, 2)) + 'bn.')
+
+    print('** We have ' + str(len(df)) + ' total rows of data to finish with.')
+    print('** We have £' + str(round(df['amount'].sum()/1000000000, 2)) +
+          'bn worth of data to finish with.')
+    print('** We have ' + str(len(df['supplier'].unique())) +
+          ' unique suppliers to finish with.')
+    print('** We merge from across ' + str(len(df_clean['dept'].unique())) +
+          ' departments.')
     print('** This data comes from: ' +
           str(len(df_clean['file'].unique())) + ' files.')
-    print('** We have: ' +
-          str(len(df_clean['supplier'].unique())) +
-          ' unique supplier strings.')
     df_clean.to_csv(os.path.join(rawpath, '..', 'output',
                                  'master', 'All_Merged_Unmatched.csv'),
                     index=False)
@@ -123,7 +137,6 @@ def evaluate_reconcile(rawpath):
     print('This represents ' + str(round(((matched['amount'].sum() /
                                            payments['amount'].sum()) *
                                           100), 2)) + '%.\n')
-
     print('We matched ' +
           str(int(len(matched['supplier'].unique()))) + ' suppliers.')
     print('This is out of ' +
