@@ -1,4 +1,5 @@
 import os
+import ezodf
 import re
 import traceback
 import requests
@@ -14,6 +15,15 @@ module_logger = logging.getLogger('centgovspend_application')
 base = 'https://www.gov.uk/government/'
 pubs = base + 'publications/'
 data = 'https://data.gov.uk/'
+
+
+def read_ods(filename, sheet_no=0, header=0):
+    tab = ezodf.opendoc(filename=filename).sheets[sheet_no]
+    df = pd.DataFrame({col[header].value: [x.value for x in col[header + 1:]]
+                       for col in tab.columns()})
+    df = df.T.reset_index(drop=False).T
+    df = df.drop(columns=[list(df)[-1]], axis=1)
+    return df.T.reset_index(drop=False).T
 
 
 def merge_files(rawpath):
@@ -60,6 +70,11 @@ def get_data(datalocations, filepath, department, exclusions=[]):
             listXLSX = re.findall(
                 'contentUrl\":\"(.*?)\",\"fileFormat\":\"XLSX\"', r.text)
             listxlsx = listXLSX + listxlsx
+            listods = re.findall(
+                'contentUrl\":\"(.*?)\",\"fileFormat\":\"ods\"', r.text)
+            listODS = re.findall(
+                'contentUrl\":\"(.*?)\",\"fileFormat\":\"ODS\"', r.text)
+            listods = listODS + listods
         else:
             listcsvs = ['https://www.gov.uk/' + x for x in
                         re.findall('<a href="(.*?.csv)"', r.text)]
@@ -67,9 +82,11 @@ def get_data(datalocations, filepath, department, exclusions=[]):
                        re.findall('href="(.*?.xls)"', r.text)]
             listxlsx = ['https://www.gov.uk/' + x for x in
                         re.findall('<a href="(.*?.xlsx)"', r.text)]
-            # listods = re.findall('<a href="(.*?.ods)"', r.text)
-        if len([listcsvs, listxls, listxlsx]) > 0:
-            for filelocation in sum([listcsvs, listxls, listxlsx], []):
+            listods = ['https://www.gov.uk/' + x for x in
+                       re.findall('href="(.*?.ods)"', r.text)]
+        if len([listcsvs, listxls, listxlsx, listods]) > 0:
+            for filelocation in sum([listcsvs, listxls,
+                                     listxlsx, listods], []):
                 try:
                     breakout = 0
                     for exclusion in exclusions:
@@ -151,13 +168,10 @@ def parse_data(filepath, department, filestoskip=[]):
     for file_ in allFiles:
         if ntpath.basename(file_) in filestoskip:
             continue
-        if file_.endswith('.ods'):
-            module_logger.debug(ntpath.basename(file_) + ' is .ods: skipping')
-            continue
         if os.path.getsize(file_) == 0:
             module_logger.debug(ntpath.basename(file_) + ' is 0b: skipping')
             continue
-        if file_.endswith(tuple(['.csv', '.xls', '.xlsx'])) is False:
+        if file_.endswith(tuple(['.csv', '.xls', '.xlsx', '.ods'])) is False:
             module_logger.debug(ntpath.basename(file_) +
                                 ': not csv, xls, xlsx or ods: not parsing....')
             continue
@@ -171,6 +185,8 @@ def parse_data(filepath, department, filestoskip=[]):
                                  header=None, error_bad_lines=False,
                                  skip_blank_lines=True, warn_bad_lines=False,
                                  engine='python')
+            elif (file_.endswith('.ods')):
+                df = read_ods(file_)
             if ntpath.basename(file_) == 'DCMS_Transactions_over__25k_January_2016__1_.csv':
                 df.loc[-1] = ['Department family', 'Entity', 'Date',
                               'Expense Type', 'Expense area', 'Supplier',
@@ -217,11 +233,11 @@ def parse_data(filepath, department, filestoskip=[]):
             df.dropna(thresh=4, axis=0, inplace=True)
             df.dropna(thresh=0.75 * len(df), axis=1, inplace=True)
             df['file'] = ntpath.basename(file_)
-            if department == 'dfeducation':
-                try:
-                    df = df[df['entity'] == 'DEPARTMENT FOR EDUCATION']
-                except Exception as e:
-                    print('Whats going on here?' + e)
+#            if department == 'dfeducation': #no longer cut exec agencies
+#                try:
+#                    df = df[df['entity'] == 'DEPARTMENT FOR EDUCATION']
+#                except Exception as e:
+#                    print('Whats going on here?' + e)
             if list(df).count('amount') == 0 and list(df).count('gross') == 1:
                 df = df.rename(columns={'gross': 'amount'})
             if list(df).count('amount') == 0 and list(df).count('grossvalue') == 1:
@@ -834,8 +850,22 @@ def charcom(filepath, dept):
                            'mergeddepts', dept + '.csv'), index=False)
 
 
-def commarauth():
-    print('Commarauth has only .ods files: need to work on parsing these...')
+def commarauth(filepath, dept):
+    createdir(filepath, dept)
+    if 'noscrape' not in sys.argv:
+        r = requests.get(base + 'collections/cma-spend-over-25000')
+        htmllist = re.findall(
+            "href=\"/government/publications/(.*?)\"\>", r.text)
+        for htmlpage in htmllist:
+            get_data([base + 'publications/' + htmlpage], filepath, dept)
+    df = parse_data(filepath, dept,
+                    filestoskip=['Payments_over__25k_October_17.ods',
+                                 'spend-over-25k-june-2017.ods',
+                                 'Payments_over__25k_September_17.ods',
+                                 'spend-over-25k-may-2017.ods'])
+    df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                           'mergeddepts', dept + '.csv'), index=False)
+
     # https://stackoverflow.com/questions/17834995/how-to-convert-opendocument-spreadsheets-to-a-pandas-dataframe
 
 
@@ -1163,14 +1193,14 @@ def serfraud(filepath, dept):
                 break
             time.sleep(1)
         for file_ in dataloc:
-            if file_ not in ['?wpdmdl=2050', #hese are zipped xml files?
+            if file_ not in ['?wpdmdl=2050',  # hese are zipped xml files?
                              '?wpdmdl=2193',
                              '?wpdmdl=3229',
                              '?wpdmdl=6819',
                              '?wpdmdl=6825']:
                 r = requests.get(serfrau1 + 'download/' + file_)
                 with open(os.path.join(os.path.join(filepath, dept),
-                                       file_.split('/')[-1]+'.csv'),
+                                       file_.split('/')[-1] + '.csv'),
                           "wb") as csvfile:
                     csvfile.write(r.content)
         time.sleep(1.5)
@@ -1241,52 +1271,52 @@ def build_merged(rawpath):
     ''' build merged databases'''
     print('\n>> Now working on Constructing Merged Departments!\n')
     filecountstart = sum([len(files) for r, d, files in os.walk(rawpath)])
-    if 'depttype=nonministerial' not in sys.argv:
-        modef(os.path.join(rawpath, 'ministerial'), 'modef')
-        cabinetoffice(os.path.join(rawpath, 'ministerial'), 'cabinetoffice')
-        dftransport(os.path.join(rawpath, 'ministerial'), 'dftransport')
-        dohealth(os.path.join(rawpath, 'ministerial'), 'dohealth')
-        dfeducation(os.path.join(rawpath, 'ministerial'), 'dfeducation')
-        dfintdev(os.path.join(rawpath, 'ministerial'), 'dfintdev')
-        dfinttrade(os.path.join(rawpath, 'ministerial'), 'dfinttrade')
-        dworkpen(os.path.join(rawpath, 'ministerial'), 'dworkpen')
-        mojust(os.path.join(rawpath, 'ministerial'), 'mojust')
-        dcultmedsport(os.path.join(rawpath, 'ministerial'), 'dcultmedsport')
-        ukexpfin(os.path.join(rawpath, 'ministerial'), 'ukexpfin')
-        dbusenind(os.path.join(rawpath, 'ministerial'), 'dbusenind')
-        dfeeu(os.path.join(rawpath, 'ministerial'), 'dfeeu')
-        foroff(os.path.join(rawpath, 'ministerial'), 'foroff')
-        hmtreas(os.path.join(rawpath, 'ministerial'), 'hmtreas')
-        mhclg(os.path.join(rawpath, 'ministerial'), 'mhclg')
-        nioff(os.path.join(rawpath, 'ministerial'), 'nioff')
-        waleoff()
-        scotoff(os.path.join(rawpath, 'ministerial'), 'scotoff')
-        gldagohmcpsi(os.path.join(rawpath, 'ministerial'), 'gldagohmcpsi')
-        homeoffice(os.path.join(rawpath, 'ministerial'), 'homeoffice')
-        leaderlords()
-        leadercommons()
-        oags(os.path.join(rawpath, 'ministerial'), 'oags')
-        defra(os.path.join(rawpath, 'ministerial'), 'defra')
+    # if 'depttype=nonministerial' not in sys.argv:
+    #modef(os.path.join(rawpath, 'ministerial'), 'modef')
+    #cabinetoffice(os.path.join(rawpath, 'ministerial'), 'cabinetoffice')
+    #dftransport(os.path.join(rawpath, 'ministerial'), 'dftransport')
+    #dohealth(os.path.join(rawpath, 'ministerial'), 'dohealth')
+    #dfeducation(os.path.join(rawpath, 'ministerial'), 'dfeducation')
+    #dfintdev(os.path.join(rawpath, 'ministerial'), 'dfintdev')
+    #dfinttrade(os.path.join(rawpath, 'ministerial'), 'dfinttrade')
+    #dworkpen(os.path.join(rawpath, 'ministerial'), 'dworkpen')
+    #mojust(os.path.join(rawpath, 'ministerial'), 'mojust')
+    #dcultmedsport(os.path.join(rawpath, 'ministerial'), 'dcultmedsport')
+    #ukexpfin(os.path.join(rawpath, 'ministerial'), 'ukexpfin')
+    #dbusenind(os.path.join(rawpath, 'ministerial'), 'dbusenind')
+    #dfeeu(os.path.join(rawpath, 'ministerial'), 'dfeeu')
+    #foroff(os.path.join(rawpath, 'ministerial'), 'foroff')
+    #hmtreas(os.path.join(rawpath, 'ministerial'), 'hmtreas')
+    #mhclg(os.path.join(rawpath, 'ministerial'), 'mhclg')
+    #nioff(os.path.join(rawpath, 'ministerial'), 'nioff')
+    # waleoff()
+    #scotoff(os.path.join(rawpath, 'ministerial'), 'scotoff')
+    #gldagohmcpsi(os.path.join(rawpath, 'ministerial'), 'gldagohmcpsi')
+    #homeoffice(os.path.join(rawpath, 'ministerial'), 'homeoffice')
+    # leaderlords()
+    # leadercommons()
+    #oags(os.path.join(rawpath, 'ministerial'), 'oags')
+    #defra(os.path.join(rawpath, 'ministerial'), 'defra')
     if 'depttype=ministerial' not in sys.argv:
         #charcom(os.path.join(rawpath, 'nonministerial'), 'charcom')
-        ## NEED TO FIX THIS commarauth()
+        commarauth(os.path.join(rawpath, 'nonministerial'), 'commarauth')
         #crownprosser(os.path.join(rawpath, 'nonministerial'), 'crownprosser')
         #fsa(os.path.join(rawpath, 'nonministerial'), 'fsa')
         #forcomm(os.path.join(rawpath, 'nonministerial'), 'forcomm')
-        #govlegdep()
+        # govlegdep()
         #govaccdept(os.path.join(rawpath, 'nonministerial'), 'govaccdept')
         #hmlandreg(os.path.join(rawpath, 'nonministerial'), 'hmlandreg')
         #hmrc(os.path.join(rawpath, 'nonministerial'), 'hmrc')
         #natsavinv(os.path.join(rawpath, 'nonministerial'), 'natsavinv')
         #natarch(os.path.join(rawpath, 'nonministerial'), 'natarch')
-        #natcrimag()
+        # natcrimag()
         #offrailroad(os.path.join(rawpath, 'nonministerial'), 'offrailroad')
         #ofgem(os.path.join(rawpath, 'nonministerial'), 'ofgem')
         #ofqual(os.path.join(rawpath, 'nonministerial'), 'ofqual')
         #ofsted(os.path.join(rawpath, 'nonministerial'), 'ofsted')
-        serfraud(os.path.join(rawpath, 'nonministerial'), 'serfraud') #https://www.sfo.gov.uk/publications/corporate-information/transparency/procurement-spend-over-25000/
+        # serfraud(os.path.join(rawpath, 'nonministerial'), 'serfraud') #https://www.sfo.gov.uk/publications/corporate-information/transparency/procurement-spend-over-25000/
         #supcourt(os.path.join(rawpath, 'nonministerial'), 'supcourt')
-        #ukstatauth()
+        # ukstatauth()
         #ofwat(os.path.join(rawpath, 'nonministerial'), 'ofwat')
     filecountend = sum([len(files) for r, d, files in os.walk(rawpath)])
     print('Added a total of ' + str(filecountend - filecountstart) +
