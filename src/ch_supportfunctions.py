@@ -67,7 +67,7 @@ def make_psc_flatfile():
                            'natures_of_control\n')
     with open(os.path.abspath(
             os.path.join(__file__, '../..', 'data', 'companies_house',
-                         'persons-with-significant-control-snapshot-2018-05-21.txt')),
+                         'persons-with-significant-control-snapshot-2018-09-07.txt')),
               'r', encoding='latin1') as f:
         for line in tqdm(f):
             try:
@@ -123,19 +123,19 @@ def make_psc_flatfile():
             except Exception as e:
                 name = 'N/A'
             try:
-                forename = json.loads(line)['data']['forename']
+                forename = json.loads(line)['data']['name_elements']['forename']
             except Exception as e:
                 forename = 'N/A'
             try:
-                middle_name = json.loads(line)['data']['middle_name']
+                middle_name = json.loads(line)['data']['name_elements']['middle_name']
             except Exception as e:
                 middle_name = 'N/A'
             try:
-                surname = json.loads(line)['data']['surname']
+                surname = json.loads(line)['data']['name_elements']['surname']
             except Exception as e:
                 surname = 'N/A'
             try:
-                title = json.loads(line)['data']['title']
+                title = json.loads(line)['data']['name_elements']['title']
             except Exception as e:
                 title = 'N/A'
             try:
@@ -280,7 +280,7 @@ def scrape_full_officer_database():
 
 
 if __name__ == '__main__':
-    #    make_psc_flatfile()
-    APIKey = load_token()
-    call_people.counter = 0
-    scrape_full_officer_database()
+    make_psc_flatfile()
+    #APIKey = load_token()
+    #call_people.counter = 0
+    #scrape_full_officer_database()
