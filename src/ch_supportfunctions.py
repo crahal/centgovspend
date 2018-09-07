@@ -57,17 +57,16 @@ def ch_officers(id, i):
 
 
 def make_psc_flatfile():
-    with open(os.path.abspath(
-            os.path.join(__file__, '../..', 'data', 'companies_house',
-                         'psc_flatfile.tsv')), 'w') as psc_flatfile:
+    with open(os.path.abspath(os.path.join(ch_data_path, 'psc_flatfile.tsv')),
+              'w') as psc_flatfile:
         psc_flatfile.write('company_number\taddress_line_1\taddress_line_2\t'
                            'locality\tpostal_code\tregion\tcountry_of_residence\t'
                            'date_of_birth\tetag\tkind\tlinks\tname\tforename\t'
                            'middle_name\tsurname\ttitle\tnationality\t'
                            'natures_of_control\n')
     with open(os.path.abspath(
-            os.path.join(__file__, '../..', 'data', 'companies_house',
-                         'persons-with-significant-control-snapshot-2018-09-07.txt')),
+              os.path.join(ch_data_path,
+                           'persons-with-significant-control-snapshot-2018-09-07.txt')),
               'r', encoding='latin1') as f:
         for line in tqdm(f):
             try:
@@ -123,11 +122,13 @@ def make_psc_flatfile():
             except Exception as e:
                 name = 'N/A'
             try:
-                forename = json.loads(line)['data']['name_elements']['forename']
+                forename = json.loads(
+                    line)['data']['name_elements']['forename']
             except Exception as e:
                 forename = 'N/A'
             try:
-                middle_name = json.loads(line)['data']['name_elements']['middle_name']
+                middle_name = json.loads(
+                    line)['data']['name_elements']['middle_name']
             except Exception as e:
                 middle_name = 'N/A'
             try:
@@ -148,8 +149,7 @@ def make_psc_flatfile():
             except Exception as e:
                 natures_of_control = 'N/A'
             with open(os.path.abspath(
-                    os.path.join(__file__, '../..', 'data',
-                                 'companies_house', 'psc_flatfile.tsv')), 'a',
+                      os.path.join(ch_data_path, 'psc_flatfile.tsv')), 'a',
                       encoding='latin-1') as psc_flatfile:
                 psc_flatfile.write(company_number + '\t' +
                                    address_line_1 + '\t' +
@@ -166,8 +166,7 @@ def make_psc_flatfile():
 
 def scrape_full_officer_database():
     bulk_ch = pd.read_csv(os.path.abspath(
-        os.path.join(__file__, '../..', 'data',
-                     'companies_house',
+        os.path.join(ch_data_path,
                      'BasicCompanyDataAsOneFile-2018-05-01.csv')), sep=',',
         usecols=[' CompanyNumber'])
     if os.path.exists(os.path.abspath(
@@ -187,10 +186,8 @@ def scrape_full_officer_database():
         listofcompanies = bulk_ch[' CompanyNumber'].tolist()
     else:
         existing_flatfile = pd.read_csv(os.path.abspath(
-            os.path.join(__file__, '../..', 'data',
-                         'companies_house',
-                         'ch_full_officers.tsv')), encoding='latin-1',
-            sep='\t')
+            os.path.join(ch_data_path, 'ch_full_officers.tsv')),
+            encoding='latin-1', sep='\t')
         listofcompanies = list(set(
             bulk_ch[' CompanyNumber'].tolist()) -
             set(
@@ -258,10 +255,8 @@ def scrape_full_officer_database():
                     except Exception as e:
                         region = 'N/A'
                     with open(os.path.abspath(
-                        os.path.join(__file__, '../..', 'data',
-                                     'companies_house',
-                                     'ch_full_officers.tsv')),
-                              'a') as officers_data:
+                            os.path.join(ch_data_path, 'ch_full_officers.tsv')),
+                            'a') as officers_data:
                         officers_data.write(CompanyNumber + '\t' +
                                             Name + '\t' +
                                             Officer_ID + '\t' +
@@ -280,7 +275,9 @@ def scrape_full_officer_database():
 
 
 if __name__ == '__main__':
+    ch_data_path = os.path.abspath(
+        os.path.join(__file__, '../..', 'data', 'companies_house'))
     make_psc_flatfile()
     #APIKey = load_token()
     #call_people.counter = 0
-    #scrape_full_officer_database()
+    # scrape_full_officer_database()
