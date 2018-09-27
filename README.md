@@ -54,7 +54,7 @@ One example is a decomposition across departments and Standard Industry Classifi
 
 And a more sociological track which shows a range of analysis related to the officers and persons of significant control of companies which supply government compared with the entire population of Companies House (created with [these](https://github.com/crahal/centgovspend/tree/master/src/ch_supportfunctions.py) functions) more generally:
 
-<img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/psc_age.png" width="400"/> <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/officers_age.png" width="400"/>
+<img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/psc_age.png" width="400"/> <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/officers_age.png" width="400"/> <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/countries_and_nationalities.png" width="800"/>
 
 _Next update of scrapers: 1/10/2018_
 
