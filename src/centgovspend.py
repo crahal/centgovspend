@@ -10,7 +10,6 @@ Options:    depttype=ministerial    : only scrape/parse ministerial depts
                                       (default = do it)
 Links last updated: 10/04/2018
 Links next updated: 01/07/2018.
-
 '''
 
 import os
@@ -41,14 +40,7 @@ def end_banner():
           str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + '  ****')
     print('**************************************************')
 
-
-if __name__ == '__main__':
-    start_banner()
-    if ('cleanrun' in sys.argv) and ('noscrape' in sys.argv):
-        print('Incompatabile options specified! Exiting')
-        quit()
-    rawpath = os.path.abspath(os.path.join(__file__, '../..', 'data', 'raw'))
-    logpath = os.path.abspath(os.path.join(__file__, '../..', 'logging'))
+def setup_logging(logpath):
     if os.path.exists(logpath):
         if os.path.isfile(os.path.abspath(
                           os.path.join(logpath, 'centgovspend.log'))):
@@ -59,8 +51,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('centgovspend_application')
     logger.setLevel(logging.DEBUG)
     fh = logging.FileHandler((os.path.abspath(
-        os.path.join(__file__, '../..', 'logging',
-                     'centgovspend.log'))))
+        os.path.join(logpath, 'centgovspend.log'))))
     fh.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.ERROR)
@@ -70,12 +61,23 @@ if __name__ == '__main__':
     ch.setFormatter(formatter)
     logger.addHandler(fh)
     logger.addHandler(ch)
+    return logger
+
+
+if __name__ == '__main__':
+    start_banner()
+    if ('cleanrun' in sys.argv) and ('noscrape' in sys.argv):
+        print('Incompatabile options specified! Exiting')
+        quit()
+    rawpath = os.path.abspath(os.path.join(__file__, '../..', 'data', 'raw'))
+    logpath = os.path.abspath(os.path.join(__file__, '../..', 'logging'))
+    logger = setup_logging(logpath)
     if 'cleanrun' in sys.argv:
         try:
             shutil.rmtree(os.path.join(rawpath, 'ministerial'))
             shutil.rmtree(os.path.join(rawpath, 'nonministerial'))
             print('*** Doing a clean run! Lets go! ***')
-        except Exception as e:
+        except OSError:
             logger.info('cleanrun option passed, but cannot delete folders.')
     if os.path.exists(rawpath) is False:
         os.makedirs(rawpath)

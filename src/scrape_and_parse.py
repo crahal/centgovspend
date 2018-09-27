@@ -48,75 +48,73 @@ def merge_files(rawpath):
 
 
 def get_data(datalocations, filepath, department, exclusions=[]):
-    ''' send data.gov.uk or gov.uk data through here.
-    If the data is hosted on a departments specific site, write it in
-    main.src
-    '''
+    ''' send data.gov.uk or gov.uk data through here. '''
     for datalocation in datalocations:
         r = requests.get(datalocation)
-        if 'data.gov.uk' in datalocation:
-            listcsvs = re.findall(
-                'contentUrl\":\"(.*?)\",\"fileFormat\":\"csv\"', r.text)
-            listCSVs = re.findall(
-                'contentUrl\":\"(.*?)\",\"fileFormat\":\"CSV\"', r.text)
-            listcsvs = listCSVs + listcsvs
-            listxls = re.findall(
-                'contentUrl\":\"(.*?)\",\"fileFormat\":\"xls\"', r.text)
-            listXLS = re.findall(
-                'contentUrl\":\"(.*?)\",\"fileFormat\":\"XLS\"', r.text)
-            listxls = listXLS + listxls
-            listxlsx = re.findall(
-                'contentUrl\":\"(.*?)\",\"fileFormat\":\"xlsx\"', r.text)
-            listXLSX = re.findall(
-                'contentUrl\":\"(.*?)\",\"fileFormat\":\"XLSX\"', r.text)
-            listxlsx = listXLSX + listxlsx
-            listods = re.findall(
-                'contentUrl\":\"(.*?)\",\"fileFormat\":\"ods\"', r.text)
-            listODS = re.findall(
-                'contentUrl\":\"(.*?)\",\"fileFormat\":\"ODS\"', r.text)
-            listods = listODS + listods
-        else:
-            listcsvs = ['https://www.gov.uk/' + x for x in
-                        re.findall('<a href="(.*?.csv)"', r.text)]
-            listxls = ['https://www.gov.uk/' + x for x in
-                       re.findall('href="(.*?.xls)"', r.text)]
-            listxlsx = ['https://www.gov.uk/' + x for x in
-                        re.findall('<a href="(.*?.xlsx)"', r.text)]
-            listods = ['https://www.gov.uk/' + x for x in
-                       re.findall('href="(.*?.ods)"', r.text)]
+        listcsvs = []
+        listxls = []
+        listxlsx = []
+        listods = []
+        soup = BeautifulSoup(r.content, 'lxml')
+        for link in soup.findAll('a'):
+            if link.get('href').lower().endswith('.csv'):
+                if 'data.gov.uk' in datalocation:
+                    listcsvs.append(link.get('href'))
+                else:
+                    listcsvs.append('https://www.gov.uk/' + link.get('href'))
+            elif link.get('href').lower().endswith('.xlsx'):
+                if 'data.gov.uk' in datalocation:
+                    listxlsx.append(link.get('href'))
+                else:
+                    listxlsx.append('https://www.gov.uk/' + link.get('href'))
+            elif link.get('href').lower().endswith('.xls'):
+                if 'data.gov.uk' in datalocation:
+                    listxls.append(link.get('href'))
+                else:
+                    listxls.append('https://www.gov.uk/' + link.get('href'))
+            elif link.get('href').lower().endswith('.ods'):
+                if 'data.gov.uk' in datalocation:
+                    listods.append(link.get('href'))
+                else:
+                    listods.append('https://www.gov.uk/' + link.get('href'))
         if len([listcsvs, listxls, listxlsx, listods]) > 0:
-            for filelocation in sum([listcsvs, listxls,
-                                     listxlsx, listods], []):
+            for filelocation in set(sum([listcsvs, listxls,
+                                         listxlsx, listods], [])):
+                if 'https://assets' in filelocation:
+                    filelocation = filelocation.replace(
+                        'https://www.gov.uk/', '')
                 try:
                     breakout = 0
                     for exclusion in exclusions:
                         if exclusion in str(filelocation):
-                            # module_logger.info(
-                                # os.path.basename(filelocation) + ' excluded.')
+                            module_logger.info(
+                                os.path.basename(filelocation) + ' is excluded! Verified problem.')
                             breakout = 1
                     if breakout == 1:
                         continue
                 except Exception as e:
                     pass
-                filename = os.path.basename(filelocation)
+                filename = os.path.basename(
+                    filelocation).replace('?', '').lower()
                 while filename[0].isalpha() is False:
                     filename = filename[1:]
                 if ('gpc' not in filename.lower()) \
                         and ('procurement' not in filename.lower()) \
                         and ('card' not in filename.lower()):
-                    if os.path.exists(os.path.join(
-                            os.path.join(filepath, department),
-                            filename)) is False:
+                    if os.path.exists(os.path.join(filepath, department,
+                                                   filename)) is False:
                         try:
                             r = requests.get(filelocation)
+                            module_logger.info('File downloaded: ' +
+                                               ntpath.basename(filelocation))
+                            with open(os.path.join(
+                                      os.path.join(filepath, department),
+                                      filename), "wb") as csvfile:
+                                csvfile.write(r.content)
                         except Exception as e:
                             module_logger.debug('Problem downloading ' +
                                                 ntpath.basename(filelocation) +
                                                 ': ' + str(e))
-                        with open(os.path.join(
-                                  os.path.join(filepath, department),
-                                  filename), "wb") as csvfile:
-                            csvfile.write(r.content)
                         time.sleep(1.5)
 
 
@@ -124,7 +122,7 @@ def heading_replacer(columnlist, filepath):
     columnlist = [x if str(x) != 'nan' else 'dropme' for x in columnlist]
     columnlist = ['dropme' if str(x) == '-1.0' else x for x in columnlist]
     columnlist = [x if str(x) != '£' else 'amount' for x in columnlist]
-    columnlist = [unidecode(x) for x in columnlist]
+    columnlist = [unidecode(x) if type(x) is str else x for x in columnlist]
     if ('Total Amount' in columnlist) and ('Amount' in columnlist):
         columnlist = ['dropme' if x ==
                       'Total Amount' else x for x in columnlist]
@@ -166,120 +164,117 @@ def parse_data(filepath, department, filestoskip=[]):
         filepath, '..', '..', 'support', 'remfields.csv'),
         names=['replacement'])['replacement'].values.tolist()
     for file_ in allFiles:
-        if ntpath.basename(file_) in filestoskip:
-            continue
-        if os.path.getsize(file_) == 0:
-            module_logger.debug(ntpath.basename(file_) + ' is 0b: skipping')
-            continue
-        if file_.endswith(tuple(['.csv', '.xls', '.xlsx', '.ods'])) is False:
-            module_logger.debug(ntpath.basename(file_) +
-                                ': not csv, xls, xlsx or ods: not parsing....')
-            continue
         try:
-            if (file_.endswith('.xls')) or (file_.endswith('xlsx')):
-                df = pd.read_excel(file_, index_col=None, encoding='latin-1',
-                                   header=None, error_bad_lines=False,
-                                   skip_blank_lines=True, warn_bad_lines=False)
-            elif (file_.endswith('.csv')):
-                df = pd.read_csv(file_, index_col=None, encoding='latin-1',
-                                 header=None, error_bad_lines=False,
-                                 skip_blank_lines=True, warn_bad_lines=False,
-                                 engine='python')
-            elif (file_.endswith('.ods')):
-                df = read_ods(file_)
-            if ntpath.basename(file_) == 'DCMS_Transactions_over__25k_January_2016__1_.csv':
-                df.loc[-1] = ['Department family', 'Entity', 'Date',
-                              'Expense Type', 'Expense area', 'Supplier',
-                              'Transation number', 'Amount', 'Narrative']
-                df.index = df.index + 1  # shifting index
-                df = df.sort_index()
-            if len(df.columns) < 3:
-                if df.iloc[0].str.contains('!DOC').any():
-                    module_logger.debug(ntpath.basename(
-                        file_) + ': html. Delete.')
-                elif df.iloc[0].str.contains('no data', case=False).any():
-                    module_logger.debug(ntpath.basename(file_)
-                                        + ' has no data in it.')
-                else:
-                    module_logger.debug(ntpath.basename(
-                        file_) + ': not otherwise tab. ')
+            if ntpath.basename(file_) in [x.lower() for x in filestoskip]:
+                module_logger.info(ntpath.basename(file_) +
+                                   ' is excluded! Verified problem.')
                 continue
-            if ntpath.basename(file_) == 'September_2013_Publishable_Spend_Over__25K_csv.csv':
-                df.loc[0][5] = 'supplier'
-            while (((any("supplier" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                   and ((any("merchant" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                   and ((any("merchant name" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                   and ((any("supplier name" in str(s).lower() for s in list(df.iloc[0]))) is False)) \
-                or (((any("amount" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                    and ((any("total" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                    and ((any("gross" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                    and ((any("£" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                    and ((any("spend" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                    #                    and ((any("sum of amount" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                    and ((any("mix of nett & gross" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                    and ((any("value" in str(s).lower() for s in list(df.iloc[0]))) is False)):
+            if os.path.getsize(file_) == 0:
+                module_logger.info(ntpath.basename(
+                    file_) + ' is 0b: skipping')
+                continue
+            if file_.lower().endswith(tuple(['.csv', '.xls', '.xlsx', '.ods'])) is False:
+                module_logger.debug(ntpath.basename(file_) +
+                                    ': not csv, xls, xlsx or ods: not parsing....')
+                continue
+            try:
+                if (file_.lower().endswith('.xls')) or (file_.endswith('xlsx')):
+                    df = pd.read_excel(file_, index_col=None, encoding='latin-1',
+                                       header=None, error_bad_lines=False,
+                                       skip_blank_lines=True, warn_bad_lines=False)
+                elif (file_.lower().endswith('.csv')):
+                    df = pd.read_csv(file_, index_col=None, encoding='latin-1',
+                                     header=None, error_bad_lines=False,
+                                     skip_blank_lines=True, warn_bad_lines=False,
+                                     engine='python')
+                elif (file_.lower().endswith('.ods')):
+                    df = read_ods(file_)
+                if ntpath.basename(file_).lower() == 'dcms_transactions_over__25k_january_2016__1_.csv':
+                    df.loc[-1] = ['Department family', 'Entity', 'Date',
+                                  'Expense Type', 'Expense area', 'Supplier',
+                                  'Transation number', 'Amount', 'Narrative']
+                    df.index = df.index + 1  # shifting index
+                    df = df.sort_index()
+                if len(df.columns) < 3:
+                    if df.iloc[0].str.contains('!DOC').any():
+                        module_logger.debug(ntpath.basename(
+                            file_) + ': html. Delete.')
+                    elif df.iloc[0].str.contains('no data', case=False).any():
+                        module_logger.debug(ntpath.basename(file_)
+                                            + ' has no data in it.')
+                    else:
+                        module_logger.debug(ntpath.basename(
+                            file_) + ': not otherwise tab. ')
+                    continue
+                if ntpath.basename(file_) == 'september_2013_publishable_spend_over__25k_csv.csv':
+                    df.loc[0][5] = 'supplier'
+                while (((any("supplier" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                       and ((any("merchant" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                       and ((any("merchant name" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                       and ((any("supplier name" in str(s).lower() for s in list(df.iloc[0]))) is False)) \
+                    or (((any("amount" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                        and ((any("total" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                        and ((any("gross" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                        and ((any("£" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                        and ((any("spend" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                        #                    and ((any("sum of amount" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                        and ((any("mix of nett & gross" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                        and ((any("value" in str(s).lower() for s in list(df.iloc[0]))) is False)):
+                    try:
+                        df = df.iloc[1:]
+                    except Exception as e:
+                        module_logger.debug('Problem with trimming' +
+                                            ntpath.basename(file_) +
+                                            '. ' + str(e))
+                df.columns = heading_replacer(list(df.iloc[0]), filepath)
+                if len(df.columns.tolist()) != len(set(df.columns.tolist())):
+                    df = df.loc[:, ~df.columns.duplicated()]
+                df = df.iloc[1:]
+                df.rename(columns=lambda x: x.strip(), inplace=True)
+                # drop empty rows and columns where half the cells are empty
+                df.dropna(thresh=4, axis=0, inplace=True)
+                df.dropna(thresh=0.75 * len(df), axis=1, inplace=True)
+                df['file'] = ntpath.basename(file_)
+                if department == 'dfeducation': #cut exec agencies here
+                    try:
+                        df = df[df['entity'] == 'DEPARTMENT FOR EDUCATION']
+                    except Exception as e:
+                        print('Whats going on here?' + e)
+                if list(df).count('amount') == 0 and list(df).count('gross') == 1:
+                    df = df.rename(columns={'gross': 'amount'})
+                if list(df).count('amount') == 0 and list(df).count('grossvalue') == 1:
+                    df = df.rename(columns={'grossvalue': 'amount'})
+                if len(df) > 0:
+                    try:
+                        df['amount'] = df['amount'].astype(str).str.replace(
+                            ',', '').str.extract('(\d+)',
+                                                 expand=False).astype(float)
+                    except Exception as e:
+                        module_logger.debug("Can't convert amount to float in " +
+                                            ntpath.basename(file_) + '. ' +
+                                            'Columns in this file ' +
+                                            df.columns.tolist())
+                    if df.empty is False:
+                        list_.append(df)
+                else:
+                    module_logger.info('No data in ' +
+                                       ntpath.basename(file_) + '!')
+            except Exception as e:
+                module_logger.debug('Problem with ' + ntpath.basename(file_) +
+                                    ': ' + traceback.format_exc())
                 try:
-                    df = df.iloc[1:]
-                except Exception as e:
-                    module_logger.debug('Problem with trimming' +
-                                        ntpath.basename(file_) +
-                                        '. ' + str(e))
-            df.columns = heading_replacer(list(df.iloc[0]), filepath)
-            if len(df.columns.tolist()) != len(set(df.columns.tolist())):
-                df = df.loc[:, ~df.columns.duplicated()]
-            df = df.iloc[1:]
-            df.rename(columns=lambda x: x.strip(), inplace=True)
-            # drop empty rows and columns where half the cells are empty
-            df.dropna(thresh=4, axis=0, inplace=True)
-            df.dropna(thresh=0.75 * len(df), axis=1, inplace=True)
-            df['file'] = ntpath.basename(file_)
-#            if department == 'dfeducation': #no longer cut exec agencies
-#                try:
-#                    df = df[df['entity'] == 'DEPARTMENT FOR EDUCATION']
-#                except Exception as e:
-#                    print('Whats going on here?' + e)
-            if list(df).count('amount') == 0 and list(df).count('gross') == 1:
-                df = df.rename(columns={'gross': 'amount'})
-            if list(df).count('amount') == 0 and list(df).count('grossvalue') == 1:
-                df = df.rename(columns={'grossvalue': 'amount'})
-            if len(df) > 0:
+                    module_logger.debug('The columns are: ' +
+                                        str(df.columns.tolist()))
+                except ValueError:
+                    pass
                 try:
-                    df['amount'] = df['amount'].astype(str).str.replace(
-                        ',', '').str.extract('(\d+)',
-                                             expand=False).astype(float)
-                except Exception as e:
-                    module_logger.debug("Can't convert amount to float in " +
-                                        ntpath.basename(file_) + '. ')
-                    print(df.columns.tolist())
-                    print(ntpath.basename(file_))
-                # try:
-                #    duplicates = df[df.amount.duplicated() &
-                #                    df.date.duplicated() &
-                #                    df.supplier.duplicated()]
-                #    if len(duplicates) > 0:
-                #        df = df[~(df.amount.duplicated() &
-                #                  df.date.duplicated() &
-                #                  df.supplier.duplicated())]
-                # except Exception as e:  # bare
-                #    module_logger.debug('Problem with duplicates in ' +
-                #                        ntpath.basename(file_) + '!')
-                if df.empty is False:
-                    list_.append(df)
-            else:
-                module_logger.info('No data in ' +
-                                   ntpath.basename(file_) + '!')
+                    module_logger.debug('The first row: ' + str(df.iloc[0]))
+                except ValueError:
+                    pass
         except Exception as e:
-            module_logger.debug('Problem with ' + ntpath.basename(file_) +
-                                ': ' + traceback.format_exc())
-            try:
-                module_logger.debug('The columns are: ' +
-                                    str(df.columns.tolist()))
-            except:
-                pass
-            try:
-                module_logger.debug('The first row: ' + str(df.iloc[0]))
-            except:
-                pass
+            module_logger.debug('Something undetermined wrong with' +
+                                file_ + '. Heres the traceback: ' +
+                                str(e))
     frame = pd.concat(list_, sort=False)
     for column in frame.columns.tolist():
         if column.lower() in removefields:
@@ -320,9 +315,13 @@ def dfeducation(filepath, dept):
                    pubs + 'departmental-and-alb-spend-over-25000-in-201112',
                    pubs + base2 + '-and-alb-spend-over-25000-201011']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def dohealth(filepath, dept):
@@ -343,9 +342,13 @@ def dohealth(filepath, dept):
                    pubs + 'dh-departmental-spend-over-25-000-2017',
                    pubs + 'dhsc-departmental-spending-over-25000-2018']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def dftransport(filepath, dept):
@@ -357,11 +360,15 @@ def dftransport(filepath, dept):
     if 'noscrape' not in sys.argv:
         dataloc = [data + 'dataset/financial-transactions-data-dft']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept, filestoskip=['dft-monthly-transparency-data-may-2017.csv',
-                                                 'dft-monthly-transparency-data-nov-2016.xlsx',
-                                                 'dft-monthly-transparency-data-sep-2016.xlsx'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept,
+                        filestoskip=['dft-monthly-transparency-data-may-2017.csv',
+                                     'dft-monthly-spend-201409.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def cabinetoffice(filepath, dept):
@@ -373,9 +380,13 @@ def cabinetoffice(filepath, dept):
     if 'noscrape' not in sys.argv:
         dataloc = [pubs + 'cabinet-office-spend-data']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def dfintdev(filepath, dept):
@@ -387,10 +398,15 @@ def dfintdev(filepath, dept):
     if 'noscrape' not in sys.argv:
         dataloc = [data + 'dataset/spend-transactions-by-dfid']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept, filestoskip=['feb2015.csv',
-                                                 'January2014.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept, filestoskip=['feb2015.csv',
+                                                     'January2014.csv',
+                                                     'may-2016.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def dfinttrade(filepath, dept):
@@ -413,9 +429,13 @@ def dfinttrade(filepath, dept):
                    pubs + 'department-for-international-trade-spend-2017-to-2018',
                    pubs + 'department-for-international-trade-spend-2016-to-2017']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def dworkpen(filepath, dept):
@@ -428,9 +448,13 @@ def dworkpen(filepath, dept):
         dataloc = [data + 'dataset/' + 'ccdc397a-3984-453b-a9d7-e285074bba4d/' +
                    'spend-over-25-000-in-the-department-for-work-and-pensions']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def modef(filepath, dept):
@@ -446,9 +470,13 @@ def modef(filepath, dept):
                    pubs + 'mod-spending-over-25000-january-to-december-2017',
                    pubs + 'mod-spending-over-25000-january-to-december-2018']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def mojust(filepath, dept):
@@ -468,9 +496,13 @@ def mojust(filepath, dept):
                    pubs + 'ministry-of-justice-spend-over-25000-2017',
                    pubs + 'ministry-of-justice-spending-over-25000-2018']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def dcultmedsport(filepath, dept):
@@ -490,9 +522,13 @@ def dcultmedsport(filepath, dept):
                    pubs + 'dcms-transactions-over-25000-201718',
                    pubs + 'dcms-transactions-over-25000-201819']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def ukexpfin(filepath, dept):
@@ -507,9 +543,13 @@ def ukexpfin(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def dbusenind(filepath, dept):
@@ -523,9 +563,13 @@ def dbusenind(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def dfeeu(filepath, dept):
@@ -541,9 +585,14 @@ def dfeeu(filepath, dept):
                    pubs + lander + 'may-2018',
                    pubs + lander + 'june-2018']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept,
+                        filestoskip = ['dcms_transactions_over__25k_january_2016__1_'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def foroff(filepath, dept):
@@ -559,9 +608,14 @@ def foroff(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept,
+                        filestoskip=['Publishable_November_2014_Spend.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def hmtreas(filepath, dept):
@@ -577,9 +631,13 @@ def hmtreas(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def mhclg(filepath, dept):
@@ -600,9 +658,13 @@ def mhclg(filepath, dept):
                     ("card" not in x) and ("card" not in x)]
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def nioff(filepath, dept):
@@ -617,9 +679,13 @@ def nioff(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def waleoff():
@@ -687,17 +753,21 @@ def scotoff(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept,
-                    filestoskip=['January__2018_-_Transparency-SO.csv',
-                                 'Departmental_spend_over__25_000_January_2017.csv',
-                                 'AUGUST_2011_20SO_20Transparency.csv',
-                                 'June_2017_-_Transparency_-_SO.csv',
-                                 'October_2017_-_Transparency-SO.csv',
-                                 'Spend-Over-25k-Jan-2012.csv',
-                                 'April_2014_transparency_OAG.csv',
-                                 'Februry__2018_-_Transparency-SO.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept,
+                        filestoskip=['January__2018_-_Transparency-SO.csv',
+                                     'Departmental_spend_over__25_000_January_2017.csv',
+                                     'AUGUST_2011_20SO_20Transparency.csv',
+                                     'June_2017_-_Transparency_-_SO.csv',
+                                     'October_2017_-_Transparency-SO.csv',
+                                     'Spend-Over-25k-Jan-2012.csv',
+                                     'April_2014_transparency_OAG.csv',
+                                     'Februry__2018_-_Transparency-SO.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def gldagohmcpsi(filepath, dept):
@@ -715,9 +785,13 @@ def gldagohmcpsi(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def homeoffice(filepath, dept):
@@ -735,11 +809,13 @@ def homeoffice(filepath, dept):
                    pubs + 'home-office-spending-over-25000-2014',
                    pubs + 'transparency-spend-over-25-000']
         get_data(dataloc, filepath, dept)
-        if os.path.exists(os.path.join(filepath, dept, 'august-2012.xls')):
-            os.remove(os.path.join(filepath, dept, 'august-2012.xls'))
-    df = parse_data(filepath, dept, filestoskip=['april-2011.xls'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept, filestoskip=['april-2011.xls'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def oags(filepath, dept):
@@ -765,55 +841,62 @@ def oags(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath,
-                    dept,
-                    filestoskip=['March_2017_-_Transparency_OAG.csv',
-                                 'August_2016_-_Transparency-OAG.csv',
-                                 'May_2013_OAG.csv',
-                                 'Spend_over_25K_February_2013.xls',
-                                 'May_2014_transparency_OAG.csv',
-                                 'April_2014_transparency_OAG.csv',
-                                 'Transparency-April-2013.csv',
-                                 'Spend_over_25k_Apr_2011_-_Mar_2012.xls',
-                                 'Spend_over_25k_August_2012.xls',
-                                 'October_2017_-_Transparency_-_OAG.csv',
-                                 'Nov_2014_transparency_OAG.csv',
-                                 'Spend_over_25k_May_2012.xls',
-                                 'Spend_over_25k_October_2012.xls',
-                                 'August_2015_-_OAG.csv',
-                                 'July_2015_-_Transparency_-_OAG.csv',
-                                 'OAG_Transparency_Aug_2013.csv',
-                                 'Nov_2015_-_Transparency-OAG.csv',
-                                 'OAG_transparency_Sep_2013.csv',
-                                 'July_2014_transparency_OAG.csv',
-                                 'Sept_2016_-_Transparency-OAG.csv',
-                                 'April_2015_-_Transparency-OAG.csv',
-                                 'November_2017_-_Transparency_-_OAG.csv',
-                                 'Sept_2015_-_Transparency-OAG.csv',
-                                 'OAG_Transparency_Oct_2013.csv',
-                                 'July_2017_-_Transparency_-_OAG.csv',
-                                 'Spend_over_25k_July_2012.xls',
-                                 'Jan_2016_-_Transparency-OAG.csv',
-                                 'Spend_over_25k_June_2012.xls',
-                                 'February_2017_-_Transparency_OAG.csv',
-                                 'Transparency_March_2013.csv',
-                                 'Transparency_-_OAG.csv',
-                                 'Feb_2016_-_Transparency-OAG.csv',
-                                 'Aug_2013_OAG_Transparency.csv',
-                                 'September_2017_-_Transparency_-_OAG.csv',
-                                 'December_2017_-_Transparency_-_OAG.csv',
-                                 'Feb_2014_transparency_OAG.csv',
-                                 'October_2014_-_Transparency_Report_-_Expenses.csv',
-                                 'Aug_2014_transparency_OAG.csv',
-                                 'June_2017_-_Transparency_-_OAG.csv',
-                                 'Spend_over_25k_September_2012.xls',
-                                 'June_2015_-_Transparency_-_OAG.csv',
-                                 'June_2014_transparency_OAG.csv',
-                                 'May_2016_-_Transparency-OAG.csv',
-                                 'December_2016_-_Transparency_OAG.csv',
-                                 'Spend_over_25k_November_2012.xls'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath,
+                        dept,
+                        filestoskip=['March_2017_-_Transparency_OAG.csv',
+                                     'August_2016_-_Transparency-OAG.csv',
+                                     'May_2013_OAG.csv',
+                                     'Spend_over_25K_February_2013.xls',
+                                     'May_2014_transparency_OAG.csv',
+                                     'April_2014_transparency_OAG.csv',
+                                     'Transparency-April-2013.csv',
+                                     'Spend_over_25k_Apr_2011_-_Mar_2012.xls',
+                                     'Spend_over_25k_August_2012.xls',
+                                     'October_2017_-_Transparency_-_OAG.csv',
+                                     'Nov_2014_transparency_OAG.csv',
+                                     'Spend_over_25k_May_2012.xls',
+                                     'Spend_over_25k_October_2012.xls',
+                                     'August_2015_-_OAG.csv',
+                                     'July_2015_-_Transparency_-_OAG.csv',
+                                     'OAG_Transparency_Aug_2013.csv',
+                                     'Nov_2015_-_Transparency-OAG.csv',
+                                     'OAG_transparency_Sep_2013.csv',
+                                     'July_2014_transparency_OAG.csv',
+                                     'Sept_2016_-_Transparency-OAG.csv',
+                                     'April_2015_-_Transparency-OAG.csv',
+                                     'November_2017_-_Transparency_-_OAG.csv',
+                                     'Sept_2015_-_Transparency-OAG.csv',
+                                     'OAG_Transparency_Oct_2013.csv',
+                                     'July_2017_-_Transparency_-_OAG.csv',
+                                     'Spend_over_25k_July_2012.xls',
+                                     'Jan_2016_-_Transparency-OAG.csv',
+                                     'Spend_over_25k_June_2012.xls',
+                                     'February_2017_-_Transparency_OAG.csv',
+                                     'Transparency_March_2013.csv',
+                                     'Transparency_-_OAG.csv',
+                                     'Feb_2016_-_Transparency-OAG.csv',
+                                     'Aug_2013_OAG_Transparency.csv',
+                                     'September_2017_-_Transparency_-_OAG.csv',
+                                     'December_2017_-_Transparency_-_OAG.csv',
+                                     'Feb_2014_transparency_OAG.csv',
+                                     'October_2014_-_Transparency_Report_-_Expenses.csv',
+                                     'Aug_2014_transparency_OAG.csv',
+                                     'June_2017_-_Transparency_-_OAG.csv',
+                                     'Spend_over_25k_September_2012.xls',
+                                     'June_2015_-_Transparency_-_OAG.csv',
+                                     'June_2014_transparency_OAG.csv',
+                                     'May_2016_-_Transparency-OAG.csv',
+                                     'December_2016_-_Transparency_OAG.csv',
+                                     'Spend_over_25k_November_2012.xls',
+                                     'Dec_2013_Transparency.xlsx',
+                                     'Nov_2013_Transparency.xlsx',
+                                     'Dec_2014_Transparency_OAG.xlsx'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def defra(filepath, dept):
@@ -828,9 +911,13 @@ def defra(filepath, dept):
         landingpage2 = '-department-for-environment-food-and-rural-affairs'
         dataloc = [data + 'dataset/' + key + landingpage1 + landingpage2]
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def charcom(filepath, dept):
@@ -845,9 +932,13 @@ def charcom(filepath, dept):
                    pubs + base1 + '2013-2014', pubs + base1 + '2014-15',
                    pubs + base1 + '2015-16', pubs + base1 + '2016-2017']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept, filestoskip=['May11.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept, filestoskip=['May11.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def commarauth(filepath, dept):
@@ -858,14 +949,17 @@ def commarauth(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept,
-                    filestoskip=['Payments_over__25k_October_17.ods',
-                                 'spend-over-25k-june-2017.ods',
-                                 'Payments_over__25k_September_17.ods',
-                                 'spend-over-25k-may-2017.ods'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
-
+    try:
+        df = parse_data(filepath, dept,
+                        filestoskip=['Payments_over__25k_October_17.ods',
+                                     'spend-over-25k-june-2017.ods',
+                                     'Payments_over__25k_September_17.ods',
+                                     'spend-over-25k-may-2017.ods'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
     # https://stackoverflow.com/questions/17834995/how-to-convert-opendocument-spreadsheets-to-a-pandas-dataframe
 
 
@@ -885,24 +979,35 @@ def crownprosser(filepath, dept):
                 re.findall(
                     '<li><h3><a href=\"(.*?)\" target=\"_blank\">CPS', r.text)
             time.sleep(1.5)
-        for file_ in dataloc:
+        for file_ in set(dataloc):
             r = requests.get(file_)
             files = re.findall(
                 'csv file--text\"><a href="(.*?)\" type=', r.text)
-            for csv in files:
-                if '.csv' in csv:
+            for csv_file in files:
+                if '.csv' in csv_file:
                     if os.path.exists(os.path.join(
                             os.path.join(filepath, dept),
-                            csv.split('/')[-1])) is False:
-                        r = requests.get(csv)
-                        with open(os.path.join(os.path.join(filepath, dept),
-                                               csv.split('/')[-1]),
-                                  "wb") as csvfile:
-                            csvfile.write(r.content)
+                            csv_file.split('/')[-1])) is False:
+                        try:
+                            r = requests.get(csv_file)
+                            module_logger.info('File downloaded: ' +
+                                               ntpath.basename(csv_file))
+                            with open(os.path.join(filepath, dept,
+                                                   csv_file.split('/')[-1]),
+                                      "wb") as csvfile:
+                                csvfile.write(r.content)
+                        except Exception as e:
+                            module_logger.debug('Problem downloading ' +
+                                                ntpath.basename(csv_file) +
+                                                ': ' + str(e))
                         time.sleep(1.5)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def fsa(filepath, dept):
@@ -921,7 +1026,7 @@ def fsa(filepath, dept):
                     base1 + subdir1 + 'expenditure25k-apr-2012-mar-2013',
                     base1 + subdir1 + 'expenditure25k-apr-2011-mar-2012',
                     base1 + subdir1 + 'expenditure25k-apr-2010-mar-2011']
-        for dataloc in datalocs:
+        for dataloc in set(datalocs):
             r = requests.get(dataloc)
             if 'github' in dataloc:
                 listcsvs = re.findall(
@@ -934,21 +1039,33 @@ def fsa(filepath, dept):
                 for link in soup.findAll('a', attrs={'href': re.compile("^https://")}):
                     listcsvs.append(link.get('href'))
             if len(listcsvs) > 0:
-                for filelocation in listcsvs:
-                    filename = os.path.basename(filelocation)
-                    if ('gpc' not in filename.lower() and '.csv' in filename.lower()):
+                for fileloc in listcsvs:
+                    filename = os.path.basename(fileloc).lower()
+                    if ('gpc' not in filename.lower() and
+                            '.csv' in filename.lower()):
                         if os.path.exists(os.path.join(
                                 os.path.join(filepath, dept),
                                 filename)) is False:
-                            r = requests.get(filelocation)
-                            with open(os.path.join(
-                                      os.path.join(filepath, dept),
-                                      filename), "wb") as csvfile:
-                                csvfile.write(r.content)
+                            try:
+                                r = requests.get(fileloc)
+                                module_logger.info('File downloaded: ' +
+                                                   ntpath.basename(fileloc))
+                                with open(os.path.join(filepath, dept,
+                                                       filename),
+                                          "wb") as csvfile:
+                                    csvfile.write(r.content)
+                            except Exception as e:
+                                module_logger.debug('Problem downloading ' +
+                                                    ntpath.basename(fileloc) +
+                                                    ': ' + str(e))
                         time.sleep(1.5)
-    df = parse_data(filepath, dept, filestoskip=['fsa-spend-aug2013.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept, filestoskip=['fsa-spend-aug2013.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def forcomm(filepath, dept):
@@ -966,16 +1083,30 @@ def forcomm(filepath, dept):
                          '/website/forestry.nsf/byunique/infd-8apcws')
         listcsvs = [homepage +
                     x for x in re.findall('<li><a href="(.*?.csv)"', r.text)]
-        for filelocation in listcsvs:
-            filename = filelocation.split('/')[-1]
-            r = requests.get(filelocation)
-            with open(os.path.join(os.path.join(filepath, dept),
-                                   filename), "wb") as csvfile:
-                csvfile.write(r.content)
-                time.sleep(1.5)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+        for fileloc in set(listcsvs):
+            filename = fileloc.split('/')[-1]
+            try:
+                if os.path.exists(os.path.join(filepath, dept,
+                                               filename)) is False:
+                    if filename != 'June2016Over25k.csv':
+                        r = requests.get(fileloc)
+                        module_logger.info('File downloaded: ' +
+                                           ntpath.basename(fileloc))
+                        with open(os.path.join(filepath, dept, filename),
+                                  "wb") as csvfile:
+                            csvfile.write(r.content)
+                        time.sleep(1.5)
+            except Exception as e:
+                module_logger.debug('Problem downloading ' +
+                                    ntpath.basename(fileloc) +
+                                    ': ' + str(e))
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def govlegdep():
@@ -994,9 +1125,13 @@ def govaccdept(filepath, dept):
                    pubs + 'gad-spend-greater-than-25000-2017',
                    pubs + 'gad-spend-greater-than-25000-2018']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept, filestoskip=['GAD_Nov_2016__25k_.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept, filestoskip=['GAD_Nov_2016__25k_.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def hmlandreg(filepath, dept):
@@ -1013,9 +1148,13 @@ def hmlandreg(filepath, dept):
             "href=\"/government/publications/(.*?)\"\>", r.text)
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def hmrc(filepath, dept):
@@ -1032,9 +1171,13 @@ def hmrc(filepath, dept):
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage],
                      filepath, dept, exclusions=['RCDTS'])
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def natsavinv(filepath, dept):
@@ -1047,21 +1190,33 @@ def natsavinv(filepath, dept):
         domain = 'https://nsandi-corporate.com'
         r = requests.get(domain + '/performance/transparency')
         htmllist = re.findall('<a href="/sites/default/files/(.*?)"', r.text)
-        for file_ in htmllist:
+        for file_ in set(htmllist):
             if '.csv' in file_:
                 file_ = domain + '/sites/default/files/' + file_
                 if os.path.exists(os.path.join(os.path.join(filepath, dept),
-                                               file_.split('/')[-1])) is False:
-                    r = requests.get(file_)
-                    with open(os.path.join(
-                              os.path.join(filepath, dept),
-                              file_.split('/')[-1]), "wb") as csvfile:
-                        csvfile.write(r.content)
-                    time.sleep(1.5)
-    df = parse_data(filepath, dept, filestoskip=[
-        'transparency-25k-12-2014.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+                                               file_.split('/')[-1].lower())) is False:
+                    try:
+                        r = requests.get(file_)
+                        with open(os.path.join(
+                                  os.path.join(filepath, dept),
+                                  file_.split('/')[-1].lower()), "wb") as csvfile:
+                            csvfile.write(r.content)
+                        module_logger.info('File downloaded: ' +
+                                           ntpath.basename(file_))
+                        time.sleep(1.5)
+                    except Exception as e:
+                        module_logger.debug('Problem downloading ' +
+                                            ntpath.basename(file_) +
+                                            ': ' + str(e))
+    try:
+        df = parse_data(filepath, dept, filestoskip=[
+            'transparency-25k-12-2014.csv',
+            'transparency-25k-2014-dec.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def natarch(filepath, dept):
@@ -1073,10 +1228,14 @@ def natarch(filepath, dept):
     if 'noscrape' not in sys.argv:
         dataloc = [data + 'dataset/national-archives-items-of-spending']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept, filestoskip=[
-        'april2013-spend-over10k.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept, filestoskip=[
+            'april2013-spend-over10k.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def natcrimag():
@@ -1093,9 +1252,13 @@ def offrailroad(filepath, dept):
         landingpage = 'dataset/office-of-rail-and-road-spending-over-25000-dataset'
         dataloc = [data + landingpage]
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def ofgem(filepath, dept):
@@ -1114,27 +1277,38 @@ def ofgem(filepath, dept):
                 dataloc = dataloc + \
                     re.findall('field-content"><a href="(.*?)"><span>', r.text)
             except Exception as e:
-                module_logger .info(dept + 'website down?')
+                module_logger.info(dept + 'website down?')
                 break
             time.sleep(1)
     if 'noscrape' not in sys.argv:
-        for file_ in dataloc:
+        for file_ in set(dataloc):
             r = requests.get('https://www.ofgem.gov.uk/' + file_)
             time.sleep(1.5)
             files = re.findall(
                 'file-container"><a href=\"(.*?)\" onclick=\"', r.text)
-            for csv in files:
-                if '.csv' in csv:
-                    if os.path.exists(os.path.join(os.path.join(filepath, dept),
-                                                   csv.split('/')[-1])) is False:
-                        r = requests.get(csv)
-                        with open(os.path.join(os.path.join(filepath, dept),
-                                               csv.split('/')[-1]), "wb") as csvfile:
-                            csvfile.write(r.content)
-                        time.sleep(1.5)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+            for csv_ in files:
+                if '.csv' in csv_:
+                    if os.path.exists(os.path.join(filepath, dept,
+                                                   csv_.split('/')[-1])) is False:
+                        try:
+                            r = requests.get(csv_)
+                            with open(os.path.join(
+                                      os.path.join(filepath, dept),
+                                      csv_.split('/')[-1]), "wb") as csvfile:
+                                csvfile.write(r.content)
+                            module_logger.info('File downloaded: ' +
+                                               ntpath.basename(csv_))
+                            time.sleep(1.5)
+                        except Exception as e:
+                            module_logger.debug('Problem downloading ' +
+                                                ntpath.basename(csv_))
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def ofqual(filepath, dept):
@@ -1146,13 +1320,18 @@ def ofqual(filepath, dept):
     if 'noscrape' not in sys.argv:
         dataloc = [pubs + 'ofqual-spend-data-over-500']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept, filestoskip=['Ofqual_Expenditure_over_25k_May_2016.csv',
-                                                 'Ofqual_Expenditure_over_25k_January_2017.csv',
-                                                 'Ofqual_Expenditure_over_25k_November_2016.csv',
-                                                 'Ofqual_Expenditure_over_25k_July_2013.csv',
-                                                 'Ofqual_Expenditure_over_25k_October_2016.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept,
+                        filestoskip=['Ofqual_Expenditure_over_25k_May_2016.csv',
+                                     'Ofqual_Expenditure_over_25k_January_2017.csv',
+                                     'Ofqual_Expenditure_over_25k_November_2016.csv',
+                                     'Ofqual_Expenditure_over_25k_July_2013.csv',
+                                     'Ofqual_Expenditure_over_25k_October_2016.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def ofsted(filepath, dept):
@@ -1166,9 +1345,13 @@ def ofsted(filepath, dept):
                    pubs + 'ofsted-spending-over-25000-2017',
                    pubs + 'ofsted-spending-over-25000-2018']
         get_data(dataloc, filepath, dept)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def serfraud(filepath, dept):
@@ -1192,22 +1375,41 @@ def serfraud(filepath, dept):
                 module_logger .info(dept + 'website down?')
                 break
             time.sleep(1)
-        for file_ in dataloc:
-            if file_ not in ['?wpdmdl=2050',  # hese are zipped xml files?
-                             '?wpdmdl=2193',
-                             '?wpdmdl=3229',
-                             '?wpdmdl=6819',
-                             '?wpdmdl=6825']:
-                r = requests.get(serfrau1 + 'download/' + file_)
-                with open(os.path.join(os.path.join(filepath, dept),
-                                       file_.split('/')[-1] + '.csv'),
-                          "wb") as csvfile:
-                    csvfile.write(r.content)
-        time.sleep(1.5)
-
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+        for file_ in set(dataloc):
+            if file_ not in ['wpdmdl=2050',  # these are zipped xml files?
+                             'wpdmdl=2193',
+                             'wpdmdl=3229',
+                             'wpdmdl=6819',
+                             'wpdmdl=6825']:
+                try:
+                    if os.path.exists(
+                        os.path.join(filepath, dept,
+                                     file_.split('/')[-1].replace('?', '') + '.csv')) is False:
+                        r = requests.get(serfrau1 + 'download/' + file_)
+                        with open(os.path.join(filepath, dept,
+                                               file_.split('/')[-1].replace('?', '') + '.csv'),
+                                  "wb") as csvfile:
+                            csvfile.write(r.content)
+                        module_logger.info('File downloaded: ' +
+                                           ntpath.basename(file_).replace('?', ''))
+                        time.sleep(1.5)
+                except Exception as e:
+                    module_logger.debug('Problem downloading ' +
+                                        ntpath.basename(file_).replace('?', '') +
+                                        ': ' + str(e))
+    try:
+        df = parse_data(filepath, dept, filestoskip=['wpdmdl=2193.csv',
+                                                     '?wpdmdl=2050.csv',
+                                                     'wpdmdl=6819.csv',
+                                                     'wpdmdl=6825.csv',
+                                                     'wpdmdl=2050.csv',
+                                                     'wpdmdl=20440.csv',
+                                                     'wpdmdl=3229.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def supcourt(filepath, dept):
@@ -1225,16 +1427,29 @@ def supcourt(filepath, dept):
                     SCbase + '2014.csv', SCbase + '2015.csv',
                     SCbase + '2016.csv', SCbase + '2017.csv',
                     SCbase + '2018.csv']
-        for html_ in htmllist:
-            r = requests.get(html_)
-            with open(os.path.join(os.path.join(filepath, dept),
-                                   html_.split('/')[-1]),
-                      "wb") as csvfile:
-                csvfile.write(r.content)
+        for html_ in set(htmllist):
+            try:
+                if os.path.exists(os.path.join(filepath, dept,
+                                               html_.split('/')[-1])) is False:
+                    r = requests.get(html_)
+                    with open(os.path.join(os.path.join(filepath, dept),
+                                           html_.split('/')[-1]),
+                              "wb") as csvfile:
+                        csvfile.write(r.content)
+                        module_logger.info('File downloaded: ' +
+                                           ntpath.basename(html_))
+            except Exception as e:
+                module_logger.debug('Problem downloading ' +
+                                    ntpath.basename(html_) +
+                                    ': ' + str(e))
             time.sleep(1)
-    df = parse_data(filepath, dept)
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept)
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def ukstatauth():
@@ -1253,71 +1468,75 @@ def ofwat(filepath, dept):
         dataloc = [data + 'dataset/' + key + landingpage]
         get_data(dataloc, filepath, dept, exclusions=[
                  'prs_dat_transactions201107'])
-    df = parse_data(filepath, dept,
-                    filestoskip=['prs_dat_transactions201008.csv',
-                                 'prs_dat_transactions201208.csv',
-                                 'prs_dat_transactions201110.csv',
-                                 'prs_dat_transactions201206.csv',
-                                 'prs_dat_transactions201501.csv',
-                                 'prs_dat_transactions201202.csv',
-                                 'prs_dat_transactions201410.csv',
-                                 'prs_dat_transactions201503.csv',
-                                 'prs_dat_transactions201412.csv'])
-    df.to_csv(os.path.join(filepath, '..', '..', 'output',
-                           'mergeddepts', dept + '.csv'), index=False)
+    try:
+        df = parse_data(filepath, dept,
+                        filestoskip=['prs_dat_transactions201008.csv',
+                                     'prs_dat_transactions201208.csv',
+                                     'prs_dat_transactions201110.csv',
+                                     'prs_dat_transactions201206.csv',
+                                     'prs_dat_transactions201501.csv',
+                                     'prs_dat_transactions201202.csv',
+                                     'prs_dat_transactions201410.csv',
+                                     'prs_dat_transactions201503.csv',
+                                     'prs_dat_transactions201412.csv'])
+        df.to_csv(os.path.join(filepath, '..', '..', 'output',
+                               'mergeddepts', dept + '.csv'), index=False)
+    except Exception as e:
+        module_logger.debug('CRITICAL problem: Cannot construct a merged '
+                            'output dataframe for ' + dept)
 
 
 def build_merged(rawpath):
     ''' build merged databases'''
     print('\n>> Now working on Constructing Merged Departments!\n')
     filecountstart = sum([len(files) for r, d, files in os.walk(rawpath)])
-    # if 'depttype=nonministerial' not in sys.argv:
-    #modef(os.path.join(rawpath, 'ministerial'), 'modef')
-    #cabinetoffice(os.path.join(rawpath, 'ministerial'), 'cabinetoffice')
-    #dftransport(os.path.join(rawpath, 'ministerial'), 'dftransport')
-    #dohealth(os.path.join(rawpath, 'ministerial'), 'dohealth')
-    #dfeducation(os.path.join(rawpath, 'ministerial'), 'dfeducation')
-    #dfintdev(os.path.join(rawpath, 'ministerial'), 'dfintdev')
-    #dfinttrade(os.path.join(rawpath, 'ministerial'), 'dfinttrade')
-    #dworkpen(os.path.join(rawpath, 'ministerial'), 'dworkpen')
-    #mojust(os.path.join(rawpath, 'ministerial'), 'mojust')
-    #dcultmedsport(os.path.join(rawpath, 'ministerial'), 'dcultmedsport')
-    #ukexpfin(os.path.join(rawpath, 'ministerial'), 'ukexpfin')
-    #dbusenind(os.path.join(rawpath, 'ministerial'), 'dbusenind')
-    #dfeeu(os.path.join(rawpath, 'ministerial'), 'dfeeu')
-    #foroff(os.path.join(rawpath, 'ministerial'), 'foroff')
-    #hmtreas(os.path.join(rawpath, 'ministerial'), 'hmtreas')
-    #mhclg(os.path.join(rawpath, 'ministerial'), 'mhclg')
-    #nioff(os.path.join(rawpath, 'ministerial'), 'nioff')
-    # waleoff()
-    #scotoff(os.path.join(rawpath, 'ministerial'), 'scotoff')
-    #gldagohmcpsi(os.path.join(rawpath, 'ministerial'), 'gldagohmcpsi')
-    #homeoffice(os.path.join(rawpath, 'ministerial'), 'homeoffice')
-    # leaderlords()
-    # leadercommons()
-    #oags(os.path.join(rawpath, 'ministerial'), 'oags')
-    #defra(os.path.join(rawpath, 'ministerial'), 'defra')
+    if 'depttype=nonministerial' not in sys.argv:
+        modef(os.path.join(rawpath, 'ministerial'), 'modef')
+        cabinetoffice(os.path.join(rawpath, 'ministerial'), 'cabinetoffice')
+        dftransport(os.path.join(rawpath, 'ministerial'), 'dftransport')
+        dohealth(os.path.join(rawpath, 'ministerial'), 'dohealth')
+        dfeducation(os.path.join(rawpath, 'ministerial'), 'dfeducation')
+        dfintdev(os.path.join(rawpath, 'ministerial'), 'dfintdev')
+        dfinttrade(os.path.join(rawpath, 'ministerial'), 'dfinttrade')
+        dworkpen(os.path.join(rawpath, 'ministerial'), 'dworkpen')
+        mojust(os.path.join(rawpath, 'ministerial'), 'mojust')
+        dcultmedsport(os.path.join(rawpath, 'ministerial'), 'dcultmedsport')
+        ukexpfin(os.path.join(rawpath, 'ministerial'), 'ukexpfin')
+        dbusenind(os.path.join(rawpath, 'ministerial'), 'dbusenind')
+        dfeeu(os.path.join(rawpath, 'ministerial'), 'dfeeu')
+        foroff(os.path.join(rawpath, 'ministerial'), 'foroff')
+        hmtreas(os.path.join(rawpath, 'ministerial'), 'hmtreas')
+        mhclg(os.path.join(rawpath, 'ministerial'), 'mhclg')
+        nioff(os.path.join(rawpath, 'ministerial'), 'nioff')
+        waleoff()
+        scotoff(os.path.join(rawpath, 'ministerial'), 'scotoff')
+        gldagohmcpsi(os.path.join(rawpath, 'ministerial'), 'gldagohmcpsi')
+        homeoffice(os.path.join(rawpath, 'ministerial'), 'homeoffice')
+        leaderlords()
+        leadercommons()
+        oags(os.path.join(rawpath, 'ministerial'), 'oags')
+        defra(os.path.join(rawpath, 'ministerial'), 'defra')
     if 'depttype=ministerial' not in sys.argv:
-        #charcom(os.path.join(rawpath, 'nonministerial'), 'charcom')
+        charcom(os.path.join(rawpath, 'nonministerial'), 'charcom')
         commarauth(os.path.join(rawpath, 'nonministerial'), 'commarauth')
-        #crownprosser(os.path.join(rawpath, 'nonministerial'), 'crownprosser')
-        #fsa(os.path.join(rawpath, 'nonministerial'), 'fsa')
-        #forcomm(os.path.join(rawpath, 'nonministerial'), 'forcomm')
-        # govlegdep()
-        #govaccdept(os.path.join(rawpath, 'nonministerial'), 'govaccdept')
-        #hmlandreg(os.path.join(rawpath, 'nonministerial'), 'hmlandreg')
-        #hmrc(os.path.join(rawpath, 'nonministerial'), 'hmrc')
-        #natsavinv(os.path.join(rawpath, 'nonministerial'), 'natsavinv')
-        #natarch(os.path.join(rawpath, 'nonministerial'), 'natarch')
-        # natcrimag()
-        #offrailroad(os.path.join(rawpath, 'nonministerial'), 'offrailroad')
-        #ofgem(os.path.join(rawpath, 'nonministerial'), 'ofgem')
-        #ofqual(os.path.join(rawpath, 'nonministerial'), 'ofqual')
-        #ofsted(os.path.join(rawpath, 'nonministerial'), 'ofsted')
-        # serfraud(os.path.join(rawpath, 'nonministerial'), 'serfraud') #https://www.sfo.gov.uk/publications/corporate-information/transparency/procurement-spend-over-25000/
-        #supcourt(os.path.join(rawpath, 'nonministerial'), 'supcourt')
-        # ukstatauth()
-        #ofwat(os.path.join(rawpath, 'nonministerial'), 'ofwat')
+        crownprosser(os.path.join(rawpath, 'nonministerial'), 'crownprosser')
+        fsa(os.path.join(rawpath, 'nonministerial'), 'fsa')
+        forcomm(os.path.join(rawpath, 'nonministerial'), 'forcomm')
+        govlegdep()
+        govaccdept(os.path.join(rawpath, 'nonministerial'), 'govaccdept')
+        hmlandreg(os.path.join(rawpath, 'nonministerial'), 'hmlandreg')
+        hmrc(os.path.join(rawpath, 'nonministerial'), 'hmrc')
+        natsavinv(os.path.join(rawpath, 'nonministerial'), 'natsavinv')
+        natarch(os.path.join(rawpath, 'nonministerial'), 'natarch')
+        natcrimag()
+        offrailroad(os.path.join(rawpath, 'nonministerial'), 'offrailroad')
+        ofgem(os.path.join(rawpath, 'nonministerial'), 'ofgem')
+        ofqual(os.path.join(rawpath, 'nonministerial'), 'ofqual')
+        ofsted(os.path.join(rawpath, 'nonministerial'), 'ofsted')
+        serfraud(os.path.join(rawpath, 'nonministerial'), 'serfraud')
+        supcourt(os.path.join(rawpath, 'nonministerial'), 'supcourt')
+        ukstatauth()
+        ofwat(os.path.join(rawpath, 'nonministerial'), 'ofwat')
     filecountend = sum([len(files) for r, d, files in os.walk(rawpath)])
     print('Added a total of ' + str(filecountend - filecountstart) +
           ' new files.')

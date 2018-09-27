@@ -9,6 +9,7 @@ from ratelimit import limits, sleep_and_retry
 from time import gmtime, strftime
 import json
 import logging
+import csv
 tqdm.monitor_interval = 0
 
 
@@ -51,7 +52,7 @@ CH = 'https://api.companieshouse.gov.uk/company/'
 
 def best_reconcile(js, typereconcile='topscore'):
     if typereconcile == 'topscore':
-        return js['result'][0]['id'], js['result'][0]['name']
+        return js['result'][0]['id'], js['result'][0]['name'].strip().upper()
 
 
 def ch_basic(id, i):
@@ -87,7 +88,7 @@ def ch_officers(id, i):
                 officers = call_ch_api(CH + str(id) + '/officers', None, pars)
                 jsonlist.append(officers.json())
         except KeyError:
-            print('Whats going on with ' + str(id))
+            module_logger.info('Whats going on with ' + str(i) + '#')
     return jsonlist
 
 
@@ -157,58 +158,58 @@ def reconcile_dataframe(rawpath, uniquesups):
             os.path.join(__file__, '../..', 'data',
                          'output', 'master',
                          'Reconciled_Suppliers.tsv')),
-                         encoding="ISO-8859-1", sep='\t')
-        pbar = tqdm(list(set(uniquesups['supplier'].tolist()) -
-                         set(df['RawSupplier'].tolist())))
+                         encoding="latin-1", sep='\t')
+        df['RawSupplier'] = df['RawSupplier'].str.strip().str.upper()
+        pbar = tqdm(set(uniquesups['supplier_upper'].tolist()) -
+                    set(df['RawSupplier'].tolist()))
     else:
         with open(os.path.abspath(
             os.path.join(__file__, '../..', 'data',
                          'output', 'master',
-                         'Reconciled_Suppliers.tsv')), 'w') as basic_suppliers:
-            basic_suppliers.write('RawSupplier\tFirst ID\tFirst Match\t'
-                                  'First Score\tSecond ID\tSecond Match\t'
-                                  'Second Score\tThird ID\tThird Match\t'
-                                  'Third Score\tCompany Status\t'
-                                  'Date of Creation\tJurisdiction\t'
-                                  'Address Line 1\tAddress Line 2\tLocality\t'
-                                  'Postcode\tDisputed Office\t'
-                                  'SIC Code\tType\tBest ID\tBest Match\n')
-        pbar = tqdm(uniquesups['supplier'].tolist())
+                         'Reconciled_Suppliers.tsv')), 'w') as tsvfile:
+            basic_suppliers = csv.writer(tsvfile, delimiter='\t', lineterminator='\n')
+            basic_suppliers.writerow(['RawSupplier','First ID','First Match',
+                             'First Score','Second ID','Second Match',
+                             'Second Score','Third ID','Third Match',
+                             'Third Score','Company Status','Date of Creation',
+                             'Jurisdiction','Address Line 1','Address Line 2',
+                             'Locality','Postcode','Disputed Office','SIC Code',
+                             'Type','Best ID','Best Match'])
+        pbar = tqdm(uniquesups['supplier_upper'].tolist())
     if os.path.exists(os.path.abspath(
         os.path.join(__file__, '../..', 'data',
                      'output', 'master',
                      'Reconciled_Officers.tsv'))) is False:
         with open(os.path.abspath(
-            os.path.join(__file__, '../..', 'data',
-                         'output', 'master',
-                         'Reconciled_Officers.tsv')), 'w') as officers_data:
-            officers_data.write('Best ID\tBest Match\tName\tOfficer ID\t'
-                                'Appointed\tResigned\tOccupation\t'
-                                'Officer Role\tDate of Birth\t'
-                                'Country of Residence\tNationality\t'
-                                'address_line_1\taddress_line_2\t'
-                                'locality\tpostal_code\tregion\n')
+            os.path.join(__file__, '../..', 'data', 'output', 'master',
+                         'Reconciled_Officers.tsv')), 'w') as tsvfile:
+            officers_data = csv.writer(tsvfile, delimiter='\t', lineterminator='\n')
+            officers_data.writerow(['Best ID','Best Match','Name','Officer ID',
+                                    'Appointed','Resigned','Occupation',
+                                    'Officer Role','Date of Birth',
+                                    'Country of Residence','Nationality',
+                                    'address_line_1','address_line_2',
+                                    'locality','postal_code','region'])
     if os.path.exists(os.path.abspath(
-        os.path.join(__file__, '../..', 'data',
-                     'output', 'master',
+        os.path.join(__file__, '../..', 'data', 'output', 'master',
                      'Reconciled_PSC.tsv'))) is False:
         with open(os.path.abspath(
-            os.path.join(__file__, '../..', 'data',
-                         'output', 'master',
-                         'Reconciled_PSC.tsv')), 'w') as officers_data:
-            officers_data.write('Best ID\tBest Match\t'
-                                'Name\tetag\tcountry_registered\t'
-                                'legal_authority\tlegal_form\t'
-                                'place_registered\tregistration_number\t'
-                                'kind\tnatures_of_control\t'
-                                'notified_on\taddress_line_1\taddress_line_2\t'
-                                'locality\tpostal_code\tregion\t'
-                                'premises\tcountry_of_residence\tnationality\t'
-                                'forename\tmiddle_name\tsurname\ttitle\n')
+            os.path.join(__file__, '../..', 'data', 'output', 'master',
+                         'Reconciled_PSC.tsv')), 'w') as tsvfile:
+            psc_data = csv.writer(tsvfile, delimiter='\t', lineterminator='\n')
+            psc_data.writerow(['Best ID','Best Match','Name','etag',
+                               'country_registered','legal_authority',
+                               'legal_form','place_registered',
+                               'registration_number','kind',
+                               'natures_of_control','notified_on',
+                               'address_line_1','address_line_2', 'locality',
+                               'postal_code','region', 'premises',
+                               'country_of_residence', 'nationality','forename',
+                               'middle_name', 'surname','title'])
     for i in pbar:
         i = unidecode(i)
         pbar.set_description("Processing %s" % i)
-        RawSupplier = i.replace('\t', '').replace('\n', '').replace('\r', '')
+        RawSupplier = i.replace('\t', '').replace('\n', '').replace('\r', '').strip().upper()
         js = get_opencorporates(unidecode(i), 3)
         try:
             First_ID = js['result'][0]['id']
@@ -217,7 +218,7 @@ def reconcile_dataframe(rawpath, uniquesups):
             First_ID = 'N/A'
             module_logger.info('No reconciliations for ' + i)
         try:
-            First_Match = js['result'][0]['name']
+            First_Match = js['result'][0]['name'].strip().upper()
         except Exception as e:
             First_Match = 'N/A'
         try:
@@ -229,7 +230,7 @@ def reconcile_dataframe(rawpath, uniquesups):
         except Exception as e:
             Second_ID = 'N/A'
         try:
-            Second_Match = js['result'][1]['name']
+            Second_Match = js['result'][1]['name'].strip().upper()
         except Exception as e:
             Second_Match = 'N/A'
         try:
@@ -241,7 +242,7 @@ def reconcile_dataframe(rawpath, uniquesups):
         except Exception as e:
             Third_ID = 'N/A'
         try:
-            Third_Match = js['result'][2]['name']
+            Third_Match = js['result'][2]['name'].strip().upper()
         except Exception as e:
             Third_Match = 'N/A'
         try:
@@ -296,31 +297,17 @@ def reconcile_dataframe(rawpath, uniquesups):
         except Exception as e:
             Type = 'N/A'
         with open(os.path.abspath(
-            os.path.join(__file__, '../..', 'data',
-                         'output', 'master', 'Reconciled_Suppliers.tsv')),
-                  'a') as basic_suppliers:
-            basic_suppliers.write(RawSupplier + '\t' +
-                                  First_ID + '\t' +
-                                  First_Match + '\t' +
-                                  str(First_Score) + '\t' +
-                                  Second_ID + '\t' +
-                                  Second_Match + '\t' +
-                                  str(Second_Score) + '\t' +
-                                  Third_ID + '\t' +
-                                  Third_Match + '\t' +
-                                  str(Third_Score) + '\t' +
-                                  Company_Status + '\t' +
-                                  Date_of_Creation + '\t' +
-                                  Jurisdiction + '\t' +
-                                  Address_Line_1 + '\t' +
-                                  Address_Line_2 + '\t' +
-                                  Locality + '\t' +
-                                  Postcode + '\t' +
-                                  str(Disputed_Office) + '\t' +
-                                  str(SIC_Code) + '\t' +
-                                  Type + '\t' +
-                                  bestid + '\t' +
-                                  bestmatch + '\n')
+            os.path.join(__file__, '../..', 'data', 'output', 'master',
+            'Reconciled_Suppliers.tsv')), 'a') as tsvfile:
+            basic_suppliers = csv.writer(tsvfile, delimiter='\t', lineterminator='\n')
+            basic_suppliers.writerow([RawSupplier, First_ID, First_Match,
+                                      str(First_Score), Second_ID, Second_Match,
+                                      str(Second_Score), Third_ID, Third_Match,
+                                      str(Third_Score), Company_Status,
+                                      Date_of_Creation, Jurisdiction,
+                                      Address_Line_1, Address_Line_2,
+                                      Locality, Postcode, str(Disputed_Office),
+                                      str(SIC_Code), Type, bestid, bestmatch])
         if bestid != 'N/A':
             try:
                 offjs = ch_officers(bestid.replace('/companies/gb/', ''), i)
@@ -387,23 +374,21 @@ def reconcile_dataframe(rawpath, uniquesups):
                                 os.path.join(__file__, '../..', 'data',
                                              'output', 'master',
                                              'Reconciled_Officers.tsv')),
-                                      'a') as officers_data:
-                                officers_data.write(bestid + '\t' +
-                                                    bestmatch + '\t' +
-                                                    Name + '\t' +
-                                                    Officer_ID + '\t' +
-                                                    Appointed + '\t' +
-                                                    Resigned + '\t' +
-                                                    Occupation + '\t' +
-                                                    Officer_Role + '\t' +
-                                                    Date_of_Birth + '\t' +
-                                                    Country_of_Residence + '\t' +
-                                                    Nationality + '\t' +
-                                                    address_line_1 + '\t' +
-                                                    address_line_2 + '\t' +
-                                                    locality + '\t' +
-                                                    postal_code + '\t' +
-                                                    region + '\n')
+                                             'a') as tsvfile:
+                                officers_data = csv.writer(tsvfile,
+                                                           delimiter='\t',
+                                                           lineterminator='\n')
+                                officers_data.writerow([bestid, bestmatch, Name,
+                                                        Officer_ID, Appointed,
+                                                        Resigned, Occupation,
+                                                        Officer_Role,
+                                                        Date_of_Birth,
+                                                        Country_of_Residence,
+                                                        Nationality,
+                                                        address_line_1,
+                                                        address_line_2,
+                                                        locality, postal_code,
+                                                        region])
             except Exception as e:
                 module_logger.debug(
                     'Something wrong with officers API: ' + i + ': ' + str(e))
@@ -507,31 +492,22 @@ def reconcile_dataframe(rawpath, uniquesups):
                                 os.path.join(__file__, '../..', 'data',
                                              'output', 'master',
                                              'Reconciled_PSC.tsv')),
-                                      'a') as psc_data:
-                                psc_data.write(bestid + '\t' +
-                                               bestmatch + '\t' +
-                                               Name + '\t' +
-                                               etag + '\t' +
-                                               country_registered + '\t' +
-                                               legal_authority + '\t' +
-                                               legal_form + '\t' +
-                                               place_registered + '\t' +
-                                               registration_number + '\t' +
-                                               kind + '\t' +
-                                               natures_of_control + '\t' +
-                                               notified_on + '\t' +
-                                               address_line_1 + '\t' +
-                                               address_line_2 + '\t' +
-                                               locality + '\t' +
-                                               postal_code + '\t' +
-                                               region + '\t' +
-                                               premises + '\t' +
-                                               country_of_residence + '\t' +
-                                               nationality + '\t' +
-                                               forename + '\t' +
-                                               middle_name + '\t' +
-                                               surname + '\t' +
-                                               title + '\n')
+                                      'a') as tsvfile:
+                                psc_data = csv.writer(tsvfile, delimiter='\t',
+                                                      lineterminator='\n')
+                                psc_data.writerow([bestid, bestmatch, Name,
+                                                   etag, country_registered,
+                                                   legal_authority, legal_form,
+                                                   place_registered,
+                                                   registration_number,
+                                                   kind, natures_of_control,
+                                                   notified_on, address_line_1,
+                                                   address_line_2, locality,
+                                                   postal_code, region,
+                                                   premises,
+                                                   country_of_residence,
+                                                   nationality, forename,
+                                                   middle_name, surname, title])
             except Exception as e:
                 module_logger.debug(
                     'Something wrong with PSC API: ' + i + ': ' + str(e))
