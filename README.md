@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/timeline.png" width="900"/>
+  <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/oecd_data.png" width="900"/>
 </p>
 
 # centgovspend
