@@ -11,10 +11,15 @@ import sys
 from unidecode import unidecode
 import pandas as pd
 import logging
+import xlrd
 module_logger = logging.getLogger('centgovspend_application')
 base = 'https://www.gov.uk/government/'
 pubs = base + 'publications/'
 data = 'https://data.gov.uk/'
+
+
+def read_date(date):
+    return xlrd.xldate.xldate_as_datetime(date, 0)
 
 
 def read_ods(filename, sheet_no=0, header=0):
@@ -40,10 +45,21 @@ def merge_files(rawpath):
                                 'expensearea': str,
                                 'expensetype': str,
                                 'file': str})
+
         df['dept'] = ntpath.basename(file_)[:-4]
         list_.append(df)
     frame = pd.concat(list_, sort=False)
     frame.dropna(thresh=0.90 * len(df), axis=1, inplace=True)
+    if pd.to_numeric(frame['date'], errors='coerce').notnull().all():
+        frame['date'] = pd.to_datetime(frame['date'].apply(read_date),
+                                       dayfirst=True,
+                                       errors='coerce')
+    else:
+        df['date'] = pd.to_datetime(df['date'],
+                                    dayfirst=True,
+                                    errors='coerce')
+    frame['transactionnumber'] = frame['transactionnumber'].str.replace('[^\w\s]', '')
+    frame['transactionnumber'] = frame['transactionnumber'].str.strip("0")
     return frame
 
 
@@ -160,121 +176,124 @@ def parse_data(filepath, department, filestoskip=[]):
     allFiles = glob.glob(os.path.join(filepath, department, '*'))
     frame = pd.DataFrame()
     list_ = []
+    filenames = []
     removefields = pd.read_csv(os.path.join(
         filepath, '..', '..', 'support', 'remfields.csv'),
         names=['replacement'])['replacement'].values.tolist()
     for file_ in allFiles:
-        try:
-            if ntpath.basename(file_) in [x.lower() for x in filestoskip]:
-                module_logger.info(ntpath.basename(file_) +
-                                   ' is excluded! Verified problem.')
-                continue
-            if os.path.getsize(file_) == 0:
-                module_logger.info(ntpath.basename(
-                    file_) + ' is 0b: skipping')
-                continue
-            if file_.lower().endswith(tuple(['.csv', '.xls', '.xlsx', '.ods'])) is False:
-                module_logger.debug(ntpath.basename(file_) +
-                                    ': not csv, xls, xlsx or ods: not parsing....')
-                continue
+        if ntpath.basename(file_).split('.')[0] not in filenames:
+            filenames.append(ntpath.basename(file_).split('.')[0])
             try:
-                if (file_.lower().endswith('.xls')) or (file_.endswith('xlsx')):
-                    df = pd.read_excel(file_, index_col=None, encoding='latin-1',
-                                       header=None, error_bad_lines=False,
-                                       skip_blank_lines=True, warn_bad_lines=False)
-                elif (file_.lower().endswith('.csv')):
-                    df = pd.read_csv(file_, index_col=None, encoding='latin-1',
-                                     header=None, error_bad_lines=False,
-                                     skip_blank_lines=True, warn_bad_lines=False,
-                                     engine='python')
-                elif (file_.lower().endswith('.ods')):
-                    df = read_ods(file_)
-                if ntpath.basename(file_).lower() == 'dcms_transactions_over__25k_january_2016__1_.csv':
-                    df.loc[-1] = ['Department family', 'Entity', 'Date',
-                                  'Expense Type', 'Expense area', 'Supplier',
-                                  'Transation number', 'Amount', 'Narrative']
-                    df.index = df.index + 1  # shifting index
-                    df = df.sort_index()
-                if len(df.columns) < 3:
-                    if df.iloc[0].str.contains('!DOC').any():
-                        module_logger.debug(ntpath.basename(
-                            file_) + ': html. Delete.')
-                    elif df.iloc[0].str.contains('no data', case=False).any():
-                        module_logger.debug(ntpath.basename(file_)
-                                            + ' has no data in it.')
-                    else:
-                        module_logger.debug(ntpath.basename(
-                            file_) + ': not otherwise tab. ')
+                if ntpath.basename(file_) in [x.lower() for x in filestoskip]:
+                    module_logger.info(ntpath.basename(file_) +
+                                       ' is excluded! Verified problem.')
                     continue
-                if ntpath.basename(file_) == 'september_2013_publishable_spend_over__25k_csv.csv':
-                    df.loc[0][5] = 'supplier'
-                while (((any("supplier" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                       and ((any("merchant" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                       and ((any("merchant name" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                       and ((any("supplier name" in str(s).lower() for s in list(df.iloc[0]))) is False)) \
-                    or (((any("amount" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                        and ((any("total" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                        and ((any("gross" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                        and ((any("£" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                        and ((any("spend" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                        #                    and ((any("sum of amount" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                        and ((any("mix of nett & gross" in str(s).lower() for s in list(df.iloc[0]))) is False)
-                        and ((any("value" in str(s).lower() for s in list(df.iloc[0]))) is False)):
+                if os.path.getsize(file_) == 0:
+                    module_logger.info(ntpath.basename(
+                        file_) + ' is 0b: skipping')
+                    continue
+                if file_.lower().endswith(tuple(['.csv', '.xls', '.xlsx', '.ods'])) is False:
+                    module_logger.debug(ntpath.basename(file_) +
+                                        ': not csv, xls, xlsx or ods: not parsing....')
+                    continue
+                try:
+                    if (file_.lower().endswith('.xls')) or (file_.endswith('xlsx')):
+                        df = pd.read_excel(file_, index_col=None, encoding='latin-1',
+                                           header=None, error_bad_lines=False,
+                                           skip_blank_lines=True, warn_bad_lines=False)
+                    elif (file_.lower().endswith('.csv')):
+                        df = pd.read_csv(file_, index_col=None, encoding='latin-1',
+                                         header=None, error_bad_lines=False,
+                                         skip_blank_lines=True, warn_bad_lines=False,
+                                         engine='python')
+                    elif (file_.lower().endswith('.ods')):
+                        df = read_ods(file_)
+                    if ntpath.basename(file_).lower() == 'dcms_transactions_over__25k_january_2016__1_.csv':
+                        df.loc[-1] = ['Department family', 'Entity', 'Date',
+                                      'Expense Type', 'Expense area', 'Supplier',
+                                      'Transation number', 'Amount', 'Narrative']
+                        df.index = df.index + 1  # shifting index
+                        df = df.sort_index()
+                    if len(df.columns) < 3:
+                        if df.iloc[0].str.contains('!DOC').any():
+                            module_logger.debug(ntpath.basename(
+                                file_) + ': html. Delete.')
+                        elif df.iloc[0].str.contains('no data', case=False).any():
+                            module_logger.debug(ntpath.basename(file_)
+                                                + ' has no data in it.')
+                        else:
+                            module_logger.debug(ntpath.basename(
+                                file_) + ': not otherwise tab. ')
+                        continue
+                    if ntpath.basename(file_) == 'september_2013_publishable_spend_over__25k_csv.csv':
+                        df.loc[0][5] = 'supplier'
+                    while (((any("supplier" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                           and ((any("merchant" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                           and ((any("merchant name" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                           and ((any("supplier name" in str(s).lower() for s in list(df.iloc[0]))) is False)) \
+                        or (((any("amount" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                            and ((any("total" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                            and ((any("gross" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                            and ((any("£" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                            and ((any("spend" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                            #                    and ((any("sum of amount" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                            and ((any("mix of nett & gross" in str(s).lower() for s in list(df.iloc[0]))) is False)
+                            and ((any("value" in str(s).lower() for s in list(df.iloc[0]))) is False)):
+                        try:
+                            df = df.iloc[1:]
+                        except Exception as e:
+                            module_logger.debug('Problem with trimming' +
+                                                ntpath.basename(file_) +
+                                                '. ' + str(e))
+                    df.columns = heading_replacer(list(df.iloc[0]), filepath)
+                    if len(df.columns.tolist()) != len(set(df.columns.tolist())):
+                        df = df.loc[:, ~df.columns.duplicated()]
+                    df = df.iloc[1:]
+                    df.rename(columns=lambda x: x.strip(), inplace=True)
+                    # drop empty rows and columns where half the cells are empty
+                    df.dropna(thresh=4, axis=0, inplace=True)
+                    df.dropna(thresh=0.75 * len(df), axis=1, inplace=True)
+                    df['file'] = ntpath.basename(file_)
+                    if department == 'dfeducation': #cut exec agencies here
+                        try:
+                            df = df[df['entity'] == 'DEPARTMENT FOR EDUCATION']
+                        except Exception as e:
+                            print('Whats going on here?' + e)
+                    if list(df).count('amount') == 0 and list(df).count('gross') == 1:
+                        df = df.rename(columns={'gross': 'amount'})
+                    if list(df).count('amount') == 0 and list(df).count('grossvalue') == 1:
+                        df = df.rename(columns={'grossvalue': 'amount'})
+                    if len(df) > 0:
+                        try:
+                            df['amount'] = df['amount'].astype(str).str.replace(
+                                ',', '').str.extract('(\d+)',
+                                                     expand=False).astype(float)
+                        except Exception as e:
+                            module_logger.debug("Can't convert amount to float in " +
+                                                ntpath.basename(file_) + '. ' +
+                                                'Columns in this file ' +
+                                                df.columns.tolist())
+                        if df.empty is False:
+                            list_.append(df)
+                    else:
+                        module_logger.info('No data in ' +
+                                           ntpath.basename(file_) + '!')
+                except Exception as e:
+                    module_logger.debug('Problem with ' + ntpath.basename(file_) +
+                                        ': ' + traceback.format_exc())
                     try:
-                        df = df.iloc[1:]
-                    except Exception as e:
-                        module_logger.debug('Problem with trimming' +
-                                            ntpath.basename(file_) +
-                                            '. ' + str(e))
-                df.columns = heading_replacer(list(df.iloc[0]), filepath)
-                if len(df.columns.tolist()) != len(set(df.columns.tolist())):
-                    df = df.loc[:, ~df.columns.duplicated()]
-                df = df.iloc[1:]
-                df.rename(columns=lambda x: x.strip(), inplace=True)
-                # drop empty rows and columns where half the cells are empty
-                df.dropna(thresh=4, axis=0, inplace=True)
-                df.dropna(thresh=0.75 * len(df), axis=1, inplace=True)
-                df['file'] = ntpath.basename(file_)
-                if department == 'dfeducation': #cut exec agencies here
+                        module_logger.debug('The columns are: ' +
+                                            str(df.columns.tolist()))
+                    except ValueError:
+                        pass
                     try:
-                        df = df[df['entity'] == 'DEPARTMENT FOR EDUCATION']
-                    except Exception as e:
-                        print('Whats going on here?' + e)
-                if list(df).count('amount') == 0 and list(df).count('gross') == 1:
-                    df = df.rename(columns={'gross': 'amount'})
-                if list(df).count('amount') == 0 and list(df).count('grossvalue') == 1:
-                    df = df.rename(columns={'grossvalue': 'amount'})
-                if len(df) > 0:
-                    try:
-                        df['amount'] = df['amount'].astype(str).str.replace(
-                            ',', '').str.extract('(\d+)',
-                                                 expand=False).astype(float)
-                    except Exception as e:
-                        module_logger.debug("Can't convert amount to float in " +
-                                            ntpath.basename(file_) + '. ' +
-                                            'Columns in this file ' +
-                                            df.columns.tolist())
-                    if df.empty is False:
-                        list_.append(df)
-                else:
-                    module_logger.info('No data in ' +
-                                       ntpath.basename(file_) + '!')
+                        module_logger.debug('The first row: ' + str(df.iloc[0]))
+                    except ValueError:
+                        pass
             except Exception as e:
-                module_logger.debug('Problem with ' + ntpath.basename(file_) +
-                                    ': ' + traceback.format_exc())
-                try:
-                    module_logger.debug('The columns are: ' +
-                                        str(df.columns.tolist()))
-                except ValueError:
-                    pass
-                try:
-                    module_logger.debug('The first row: ' + str(df.iloc[0]))
-                except ValueError:
-                    pass
-        except Exception as e:
-            module_logger.debug('Something undetermined wrong with' +
-                                file_ + '. Heres the traceback: ' +
-                                str(e))
+                module_logger.debug('Something undetermined wrong with' +
+                                    file_ + '. Heres the traceback: ' +
+                                    str(e))
     frame = pd.concat(list_, sort=False)
     for column in frame.columns.tolist():
         if column.lower() in removefields:
@@ -300,13 +319,14 @@ def dfeducation(filepath, dept):
     Notes: nb -- there is no page for 2018-2019 at present.
     How to update: look for early 2018 files in the collection page:
     /collections/dfe-department-and-executive-agency-spend-over-25-000
-    Most recent file: Feb 2018
+    Most recent file: oct 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         base1 = 'department-for-education-and-executive-agency-spend-over-25000'
         base2 = 'department-for-education'
-        dataloc = [pubs + 'dfe-and-executive-agency-spend-over-25000-2017-to-2018',
+        dataloc = [pubs + 'dfe-and-executive-agency-spend-over-25000-2018-to-2019',
+                   pubs + 'dfe-and-executive-agency-spend-over-25000-2017-to-2018',
                    pubs + 'dfe-and-executive-agency-spend-over-25000-2016-to-2017',
                    pubs + 'dfe-and-executive-agency-spend-over-25000-2015-to-2016',
                    pubs + 'dfe-and-executive-agency-spend-over-25000-2014-to-2015',
@@ -316,7 +336,9 @@ def dfeducation(filepath, dept):
                    pubs + base2 + '-and-alb-spend-over-25000-201011']
         get_data(dataloc, filepath, dept)
     try:
-        df = parse_data(filepath, dept)
+        df = parse_data(filepath, dept,
+                        filestoskip = ['dfe_spend_01apr_2012.csv',
+                                       'dfe_spend_03jun_2012.csv'])
         df.to_csv(os.path.join(filepath, '..', '..', 'output',
                                'mergeddepts', dept + '.csv'), index=False)
     except Exception as e:
@@ -328,7 +350,7 @@ def dohealth(filepath, dept):
     ''' Notes: collections with annual groupings, very logical annual subdomains
     Notes: However, department changes from DH to DHSC in end 2017 reshuffle.
     How to update: /collections/spending-over-25-000--2
-    Most recent file: June 2018
+    Most recent file: Dec 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -343,7 +365,8 @@ def dohealth(filepath, dept):
                    pubs + 'dhsc-departmental-spending-over-25000-2018']
         get_data(dataloc, filepath, dept)
     try:
-        df = parse_data(filepath, dept)
+        df = parse_data(filepath, dept,
+                        filestoskip=['december_18_over__25k_spend_data_to_be_published.csv'])
         df.to_csv(os.path.join(filepath, '..', '..', 'output',
                                'mergeddepts', dept + '.csv'), index=False)
     except Exception as e:
@@ -363,7 +386,8 @@ def dftransport(filepath, dept):
     try:
         df = parse_data(filepath, dept,
                         filestoskip=['dft-monthly-transparency-data-may-2017.csv',
-                                     'dft-monthly-spend-201409.csv'])
+                                     'dft-monthly-spend-201409.csv',
+                                     'dft-monthly-transparency-data-september-2018.csv'])
         df.to_csv(os.path.join(filepath, '..', '..', 'output',
                                'mergeddepts', dept + '.csv'), index=False)
     except Exception as e:
@@ -374,7 +398,7 @@ def dftransport(filepath, dept):
 def cabinetoffice(filepath, dept):
     ''' Notes: everything in one publications page
     How to update: publications/cabinet-office-spend-data
-    Most recent file: may 2018
+    Most recent file: dec 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -392,7 +416,7 @@ def cabinetoffice(filepath, dept):
 def dfintdev(filepath, dept):
     ''' Notes: everything in one data.gov.uk page, easy. Threshold £500
     How to update: check dataset/financial-transactions-data-dft
-    Most recent file: June 2018
+    Most recent file: Jan 2019
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -414,11 +438,17 @@ def dfinttrade(filepath, dept):
         for the most part of the first two years, then buggy/bad individual
         files hyperlinked to the collection page.
         How to update: check /collections/dit-departmental-spending-over-25000
-        Most recent file: June 2018
+        Most recent file: Dec 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
-        dataloc = [pubs + 'dit-spending-over-25000-june-2018',
+        dataloc = [pubs + 'dit-spending-over-25000-december-2018',
+                   pubs + 'dit-spending-over-25000-november-2018',
+                   pubs + 'dit-spending-over-25000-october-2018',
+                   pubs + 'dit-spending-over-25000-september-2018',
+                   pubs + 'dit-spending-over-25000-august-2018',
+                   pubs + 'dit-spending-over-25000-july-2018',
+                   pubs + 'dit-spending-over-25000-june-2018',
                    pubs + 'dit-spending-over-25000-may-2018',
                    pubs + 'dit-spending-over-25000-april-2018',
                    pubs + 'dit-spending-over-25000-march-2018',
@@ -441,7 +471,7 @@ def dfinttrade(filepath, dept):
 def dworkpen(filepath, dept):
     ''' Notes: Groupled publications in collection, but ends half through 2017
         How to update: check page at collections/dwp-payments-over-25-000
-        Most recent file: May 2017
+        Most recent file: Dec 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -460,7 +490,7 @@ def dworkpen(filepath, dept):
 def modef(filepath, dept):
     '''Notes: grouped £500 and £25000 together in one collection: super great.
     How to update: check collections/mod-finance-transparency-dataset
-    Most recent file: June 2018
+    Most recent file: Jan 2019
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -468,7 +498,8 @@ def modef(filepath, dept):
                    pubs + 'mod-spending-over-25000-january-to-december-2015',
                    pubs + 'mod-spending-over-25000-january-to-december-2016',
                    pubs + 'mod-spending-over-25000-january-to-december-2017',
-                   pubs + 'mod-spending-over-25000-january-to-december-2018']
+                   pubs + 'mod-spending-over-25000-january-to-december-2018',
+                   pubs + 'mod-spending-over-25000-january-to-december-2019']
         get_data(dataloc, filepath, dept)
     try:
         df = parse_data(filepath, dept)
@@ -484,7 +515,7 @@ def mojust(filepath, dept):
     are a bit weird. Slightly outdated alsoself.
     How to update: search for a new landing page, something akin to:
     collections/moj-spend-over-25000-2018?
-    Most recent file: April 2018
+    Most recent file: Dec 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -509,7 +540,7 @@ def dcultmedsport(filepath, dept):
     ''' Notes: This is quite a mess -- each pubs page has a differet annual set
     How to update: search for a new landing page, something akin to:
     publications/dcms-transactions-over-25000-201819?
-    Most recent file: Jan 2018
+    Most recent file: Dec 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -534,7 +565,7 @@ def dcultmedsport(filepath, dept):
 def ukexpfin(filepath, dept):
     ''' Notes: random files appear to be missing? good collection structure
     How to update: should be automatic? collections/ukef-spend-over-25-000
-    Most recent file: May 2018
+    Most recent file: Dec 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -555,7 +586,7 @@ def ukexpfin(filepath, dept):
 def dbusenind(filepath, dept):
     ''' Notes: very nice collection structure all on one pageself.
     How to update: collections/beis-spending-over-25000
-    Most recent file: Sept 2017 '''
+    Most recent file: Sept 2017 (STILL! as of March 2019)'''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         r = requests.get(base + 'collections/beis-spending-over-25000')
@@ -574,7 +605,7 @@ def dbusenind(filepath, dept):
 
 def dfeeu(filepath, dept):
     ''' Notes: this is a bit of a mess... need to add files one by one?
-    Most recent file: June 2018
+    Most recent file: January 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -583,7 +614,14 @@ def dfeeu(filepath, dept):
                    pubs + lander + 'march-2018',
                    pubs + lander + 'april-2018',
                    pubs + lander + 'may-2018',
-                   pubs + lander + 'june-2018']
+                   pubs + lander + 'june-2018',
+                   pubs + lander + 'july-2018',
+                   pubs + lander + 'august-2018',
+                   pubs + lander + 'september-2018',
+                   pubs + lander + 'october-2018',
+                   pubs + lander + 'november-2018',
+                   pubs + lander + 'december-2018',
+                   pubs + lander + 'january-2019']
         get_data(dataloc, filepath, dept)
     try:
         df = parse_data(filepath, dept,
@@ -599,7 +637,7 @@ def foroff(filepath, dept):
     ''' Note: great: everything in one collection pageself.
     How to update: should be automatic, but if not check:
     collections/foreign-office-spend-over-25000
-    Most recent file: June 2018
+    Most recent file: Jan 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -610,7 +648,8 @@ def foroff(filepath, dept):
             get_data([base + 'publications/' + htmlpage], filepath, dept)
     try:
         df = parse_data(filepath, dept,
-                        filestoskip=['Publishable_November_2014_Spend.csv'])
+                        filestoskip=['Publishable_November_2014_Spend.csv',
+                                     'october_2013.csv'])
         df.to_csv(os.path.join(filepath, '..', '..', 'output',
                                'mergeddepts', dept + '.csv'), index=False)
     except Exception as e:
@@ -622,7 +661,7 @@ def hmtreas(filepath, dept):
     ''' Note: out of date a bit, but collection is clean
     How to update: collections/25000-spend
     Most recent file: March 2017
-    Note: No more recent file as of March 2018
+    Note: No more recent file as of Sept 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -644,7 +683,7 @@ def mhclg(filepath, dept):
     ''' Note this changes from dclg in dec 2017.
     Note: therefore, grab all MHCLG only... this is a broken mess in general
     How to update: collections/mhclg-departmental-spending-over-250
-    Most recent file: May 2018
+    Most recent file: jan 2019
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -704,12 +743,13 @@ def scotoff(filepath, dept):
     '''Notes: this is really grim. have to manually scrape pages from the
     search function (eurgh)...
     How to update: manual search https://www.gov.uk/government/publications ?
-    Most recent file: Feb 2018
+    Most recent file: Feb 2019
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         land = 'departmental-spend-over-25000'
         SO = 'scotland-office-'
+        scoto = 'office-of-the-secretary-of-state-for-scotland-'
         htmllist = [land + '-january-2018',
                     land + '-february-2018',
                     land + '-march-2018',
@@ -717,6 +757,13 @@ def scotoff(filepath, dept):
                     land + '-may-2018',
                     land + '-june-2018',
                     land + '-july-2018',
+                    land + '-august-2018',
+                    land + '-september-2018',
+                    scoto + land + '-october-2018',
+                    scoto + land + '-november-2018',
+                    scoto + land + '-december-2018',
+                    scoto + land + 'january-2019',
+                    scoto + land + '-february-2019',
                     land + '-november-2017',
                     land + '-december-2017',
                     land + '-october-2017',
@@ -762,7 +809,10 @@ def scotoff(filepath, dept):
                                      'October_2017_-_Transparency-SO.csv',
                                      'Spend-Over-25k-Jan-2012.csv',
                                      'April_2014_transparency_OAG.csv',
-                                     'Februry__2018_-_Transparency-SO.csv'])
+                                     'Februry__2018_-_Transparency-SO.csv',
+                                     'july-september_16_senor_officials__travel_q2.csv',
+                                     'july-september_16_senior_officials_hospitality.csv',
+                                     'transparency_sodecember18.csv'])
         df.to_csv(os.path.join(filepath, '..', '..', 'output',
                                'mergeddepts', dept + '.csv'), index=False)
     except Exception as e:
@@ -775,7 +825,7 @@ def gldagohmcpsi(filepath, dept):
     and HM Crown Prosecution Service Inspectorate. The final link on the
     page is everything prior to march 2017
     How to update: collections/gld-ago-hmcpsi-transactions-greater-than-25000
-    Most recent file: May 2018
+    Most recent file: August 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -810,7 +860,9 @@ def homeoffice(filepath, dept):
                    pubs + 'transparency-spend-over-25-000']
         get_data(dataloc, filepath, dept)
     try:
-        df = parse_data(filepath, dept, filestoskip=['april-2011.xls'])
+        df = parse_data(filepath, dept, filestoskip=['april-2011.xls',
+                                                     'HO_GLAA_25K_Spend_2018_ODS.ods',
+                                                     'HO_GLAA_25K_Spend_2018_CSV.csv'])
         df.to_csv(os.path.join(filepath, '..', '..', 'output',
                                'mergeddepts', dept + '.csv'), index=False)
     except Exception as e:
@@ -828,12 +880,28 @@ def oags(filepath, dept):
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         land = 'oag-spending-over-25000-for-'
-        htmllist = [land + 'february-2018', land + 'december-2017',
-                    land + 'november-2017', land + 'october-2017',
-                    land + 'september-2017', land + 'august-2017',
-                    land + 'july-2017', land + 'june-2017',
-                    land + 'march-2017', land + 'february-2017',
-                    land + 'january-2017', land + 'december-2016']
+        htmllist = [land + 'september-2018',
+                    land + 'august-2018',
+                    land + 'july-2018',
+                    land + 'june-2018',
+                    land + 'may-2018',
+                    land + 'april-2018',
+                    land + 'march-2018',
+                    land + 'february-2018',
+                    land + 'january-2018',
+                    land + 'december-2017',
+                    land + 'november-2017',
+                    land + 'october-2017',
+                    land + 'september-2017',
+                    land + 'august-2017',
+                    land + 'july-2017',
+                    land + 'june-2017',
+                    land + 'may-2017',
+                    land + 'april-2017',
+                    land + 'march-2017',
+                    land + 'february-2017',
+                    land + 'january-2017',
+                    land + 'december-2016']
         for htmlpage in htmllist:
             get_data([base + 'publications/' + htmlpage], filepath, dept)
         r = requests.get(base + 'collections/spend-over-25-000')
@@ -858,6 +926,7 @@ def oags(filepath, dept):
                                      'Spend_over_25k_May_2012.xls',
                                      'Spend_over_25k_October_2012.xls',
                                      'August_2015_-_OAG.csv',
+                                     'transparency_oag_aug_18.xlsx',
                                      'July_2015_-_Transparency_-_OAG.csv',
                                      'OAG_Transparency_Aug_2013.csv',
                                      'Nov_2015_-_Transparency-OAG.csv',
@@ -928,9 +997,11 @@ def charcom(filepath, dept):
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         base1 = 'invoices-over-25k-during-financial-year-'
+        base2 = 'charity-commission-spend-over-25000-'
         dataloc = [pubs + base1 + '2011-2012', pubs + base1 + '2012-2013',
                    pubs + base1 + '2013-2014', pubs + base1 + '2014-15',
-                   pubs + base1 + '2015-16', pubs + base1 + '2016-2017']
+                   pubs + base1 + '2015-16', pubs + base1 + '2016-2017',
+                   pubs + base2 + '2017-2018', pubs + base2 + '2018-2019']
         get_data(dataloc, filepath, dept)
     try:
         df = parse_data(filepath, dept, filestoskip=['May11.csv'])
@@ -942,6 +1013,10 @@ def charcom(filepath, dept):
 
 
 def commarauth(filepath, dept):
+    ''' this is a collection, so should update automatically
+        Most recent file: Dec 2018
+    '''
+
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         r = requests.get(base + 'collections/cma-spend-over-25000')
@@ -964,45 +1039,21 @@ def commarauth(filepath, dept):
 
 
 def crownprosser(filepath, dept):
-    ''' Note: custom function devised by the cps search function
-    How to update: maybe add an extra page onto the range?
-    Last update: Dec 2017?
+    ''' Note: There is now a dedicated page when there wasnt previously
+    Check that this actually works on the next runself, as it may be trying
+    to parse really janky stuff (there are multiple files on the page...)
+
+    Last update:
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
-        crownbase = 'https://www.cps.gov.uk/search/'
-        search = 'node?keys=CPS%20Expenditure%20over%20%C2%A325%2C000&page='
-        dataloc = []
-        for page in range(0, 7):
-            r = requests.get(crownbase + search + str(page))
-            dataloc = dataloc + \
-                re.findall(
-                    '<li><h3><a href=\"(.*?)\" target=\"_blank\">CPS', r.text)
-            time.sleep(1.5)
-        for file_ in set(dataloc):
-            r = requests.get(file_)
-            files = re.findall(
-                'csv file--text\"><a href="(.*?)\" type=', r.text)
-            for csv_file in files:
-                if '.csv' in csv_file:
-                    if os.path.exists(os.path.join(
-                            os.path.join(filepath, dept),
-                            csv_file.split('/')[-1])) is False:
-                        try:
-                            r = requests.get(csv_file)
-                            module_logger.info('File downloaded: ' +
-                                               ntpath.basename(csv_file))
-                            with open(os.path.join(filepath, dept,
-                                                   csv_file.split('/')[-1]),
-                                      "wb") as csvfile:
-                                csvfile.write(r.content)
-                        except Exception as e:
-                            module_logger.debug('Problem downloading ' +
-                                                ntpath.basename(csv_file) +
-                                                ': ' + str(e))
-                        time.sleep(1.5)
+        key = '22c9d6a0-2139-46c4-bf3d-5fe9722de873/'
+        landingpage = 'spend-over-25-000-in-the-crown-prosecution-service'
+        dataloc = [data + 'dataset/' + key + landingpage]
+        get_data(dataloc, filepath, dept, exclusions=[])
     try:
-        df = parse_data(filepath, dept)
+        df = parse_data(filepath, dept,
+                        filestoskip=[''])
         df.to_csv(os.path.join(filepath, '..', '..', 'output',
                                'mergeddepts', dept + '.csv'), index=False)
     except Exception as e:
@@ -1012,7 +1063,9 @@ def crownprosser(filepath, dept):
 
 def fsa(filepath, dept):
     ''' some of the files requested are links to other sites and are returning
-    html: but these dont get parsed so just ignore them for now '''
+    html: but these dont get parsed so just ignore them for now,
+
+    Last update: October 2018'''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         fsagit = 'https://github.com/'
@@ -1116,14 +1169,16 @@ def govlegdep():
 def govaccdept(filepath, dept):
     ''' Note: each year has its own publications page, pretty janky
     How to update: search for 'gad-spend-greater-than-25000-2018?'?
-    Most recent file: May 2018'''
+    Most recent file: Jan 2019'''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         dataloc = [pubs + 'gad-spend-greater-than-25000-2014',
                    pubs + 'gad-spend-greater-than-25000-2015',
                    pubs + 'gad-spend-greater-than-25000-2016',
                    pubs + 'gad-spend-greater-than-25000-2017',
-                   pubs + 'gad-spend-greater-than-25000-2018']
+                   pubs + 'gad-spend-greater-than-25000-2018',
+                   pubs + 'gad-spend-greater-than-25000-2018',
+                   pubs + 'gad-spend-greater-than-25000-2019']
         get_data(dataloc, filepath, dept)
     try:
         df = parse_data(filepath, dept, filestoskip=['GAD_Nov_2016__25k_.csv'])
@@ -1138,7 +1193,7 @@ def hmlandreg(filepath, dept):
     ''' Notes: exemplary! all in one collections page.
     How to update: should be automatic, if not, check:
     collections/land-registry-expenditure-over-25000
-    Most recent file: February 2018
+    Most recent file: November 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -1161,7 +1216,7 @@ def hmrc(filepath, dept):
     ''' Notes: exemplary! all in one collections page.
     How to update: should be automatic, if not, check:
     collections/spending-over-25-000
-    Most recent file: June 2018
+    Most recent file: Jan 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -1196,14 +1251,15 @@ def natsavinv(filepath, dept):
                 if os.path.exists(os.path.join(os.path.join(filepath, dept),
                                                file_.split('/')[-1].lower())) is False:
                     try:
-                        r = requests.get(file_)
-                        with open(os.path.join(
-                                  os.path.join(filepath, dept),
-                                  file_.split('/')[-1].lower()), "wb") as csvfile:
-                            csvfile.write(r.content)
-                        module_logger.info('File downloaded: ' +
-                                           ntpath.basename(file_))
-                        time.sleep(1.5)
+                        if file_.lower().contains('transparency-25k-2014-dec.csv') is false:
+                            r = requests.get(file_)
+                            with open(os.path.join(
+                                      os.path.join(filepath, dept),
+                                      file_.split('/')[-1].lower()), "wb") as csvfile:
+                                csvfile.write(r.content)
+                            module_logger.info('File downloaded: ' +
+                                               ntpath.basename(file_))
+                            time.sleep(1.5)
                     except Exception as e:
                         module_logger.debug('Problem downloading ' +
                                             ntpath.basename(file_) +
@@ -1211,7 +1267,9 @@ def natsavinv(filepath, dept):
     try:
         df = parse_data(filepath, dept, filestoskip=[
             'transparency-25k-12-2014.csv',
-            'transparency-25k-2014-dec.csv'])
+            'transparency-25k-2014-dec.csv',
+            'transparency-25k-2014-Dec.csv',
+            ''])
         df.to_csv(os.path.join(filepath, '..', '..', 'output',
                                'mergeddepts', dept + '.csv'), index=False)
     except Exception as e:
@@ -1222,7 +1280,7 @@ def natsavinv(filepath, dept):
 def natarch(filepath, dept):
     ''' Note: complete listing on data.gov.uk.
     How to update: automatic?: dataset/national-archives-items-of-spending
-    Most recent file: April 2018
+    Most recent file: Feb 2019
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -1245,7 +1303,7 @@ def natcrimag():
 def offrailroad(filepath, dept):
     ''' Note: up to date listing on data.gov.uk, but starts late?
     How to update: dataset/office-of-rail-and-road-spending-over-25000-dataset
-    Most recent file: June 2018
+    Most recent file: Jan 2019
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -1264,7 +1322,7 @@ def offrailroad(filepath, dept):
 def ofgem(filepath, dept):
     ''' Note: custom function devised by the ofgem search function
     How to update: maybe add an extra page onto the range?
-    Last update: Sept 2017?
+    Last update: April 2018?
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -1314,7 +1372,7 @@ def ofgem(filepath, dept):
 def ofqual(filepath, dept):
     '''Notes: Everything in one publications sheet
     How to update: automatic? publications/ofqual-spend-data-over-500
-    Most recent file: October 2017
+    Most recent file: 2018 to 2019
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -1337,10 +1395,11 @@ def ofqual(filepath, dept):
 def ofsted(filepath, dept):
     '''Notes: four publications pages linked together via a collection
     How to update: collections/ofsted-spending-over-25000
-    Most recent file: February 2018'''
+    Most recent file: January 2019'''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         dataloc = [pubs + 'ofsted-spending-over-25000-since-april-2010',
+                   pubs + 'ofsted-spending-over-25000-2019',
                    pubs + 'ofsted-spending-over-25000-2016',
                    pubs + 'ofsted-spending-over-25000-2017',
                    pubs + 'ofsted-spending-over-25000-2018']
@@ -1355,7 +1414,9 @@ def ofsted(filepath, dept):
 
 
 def serfraud(filepath, dept):
-    ''' '''
+    ''' Custom site, but looks ok, maybe one day will have to add to the range:
+    Last file: Sept 2018
+    '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
         serfrau1 = 'https://www.sfo.gov.uk/'
@@ -1415,9 +1476,9 @@ def serfraud(filepath, dept):
 def supcourt(filepath, dept):
     '''Notes: have to go via a third party website and create a custom function
     but otherwise seems to be working fine and well. Nicely grouped annually.
-    How to update: check for existance of 2019.csv at:
+    How to update: check for existance of 2020.csv at:
         https://www.supremecourt.uk/about/transparency.html
-    Most recent file: annual 2018 file -- specifies when most recently updated
+    Most recent file: annual 2019 file -- specifies when most recently updated
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:
@@ -1426,7 +1487,7 @@ def supcourt(filepath, dept):
                     SCbase + '2012.csv', SCbase + '2013.csv',
                     SCbase + '2014.csv', SCbase + '2015.csv',
                     SCbase + '2016.csv', SCbase + '2017.csv',
-                    SCbase + '2018.csv']
+                    SCbase + '2018.xlsx', SCbase + '2019.xlsx']
         for html_ in set(htmllist):
             try:
                 if os.path.exists(os.path.join(filepath, dept,
@@ -1459,7 +1520,7 @@ def ukstatauth():
 def ofwat(filepath, dept):
     ''' Note: complete listing on data.gov.uk. some deadlinks...
     How to update: automatic?: dataset/financial-transactions-data-ofwat
-    Most recent file: March 2018
+    Most recent file:December 2018
     '''
     createdir(filepath, dept)
     if 'noscrape' not in sys.argv:

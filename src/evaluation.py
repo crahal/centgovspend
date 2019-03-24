@@ -71,9 +71,7 @@ def evaluate_and_clean_merge(df, rawpath):
           ' unique "various" supplier strings.')
     cols_to_consider = ['amount', 'date', 'dept', 'expensearea',
                         'expensetype', 'transactionnumber', 'supplier']
-    grouped = df.groupby(cols_to_consider)
-    index = [gp_keys[0] for gp_keys in grouped.groups.values()]
-    df_clean = df.reindex(index)
+    df_clean = df.drop_duplicates(subset=cols_to_consider, keep='first')
     df_clean['supplier'] = df_clean['supplier'].str.replace('\t', '')
     df_clean['supplier'] = df_clean['supplier'].str.replace('\n', '')
     df_clean['supplier'] = df_clean['supplier'].str.replace('\r', '')
@@ -117,11 +115,17 @@ def evaluate_reconcile(rawpath):
         dtype={'transactionnumber': str, 'supplier': str,
                'date': str, 'expensearea': str,
                'expensetype': str, 'file': str})
-    payments['amount'] = pd.to_numeric(payments['amount'], errors='coerce')
+    payments['date'] = pd.to_datetime(payments['date'], errors='coerce',
+                                      dayfirst=True)
+    payments['transactionnumber'] = payments['transactionnumber'].str.replace('[^\w\s]', '')
+    payments['transactionnumber'] = payments['transactionnumber'].str.strip("0")
+    payments['amount'] = pd.to_numeric(payments['amount'],
+                                       errors='coerce')
     recon_sup = pd.read_csv(os.path.abspath(
-        os.path.join('__file__', '../..', 'data', 'output', 'master',
-                     'Reconciled_Suppliers.tsv')),
-        encoding="ISO-8859-1", sep='\t')
+                            os.path.join('__file__', '../..', 'data',
+                                         'output', 'master',
+                                         'Reconciled_Suppliers.tsv')),
+                            encoding="ISO-8859-1", sep='\t')
     recon_sup['RawSupplier'] = recon_sup['RawSupplier'].str.strip().str.upper()
     reconciled = pd.merge(payments, recon_sup, how='left',
                           left_on='supplier_upper', right_on='RawSupplier')
