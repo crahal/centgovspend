@@ -1,6 +1,184 @@
-2018-08-07 20:13:23,412 - centgovspend_application - INFO - Working on serfraud.
-2018-08-07 20:14:55,007 - centgovspend_application - DEBUG - ?wpdmdl=2050.csv: not otherwise tab. 
-2018-08-07 20:14:55,225 - centgovspend_application - DEBUG - ?wpdmdl=6819.csv: not otherwise tab. 
-2018-08-07 20:14:55,822 - centgovspend_application - DEBUG - ?wpdmdl=3229.csv: not otherwise tab. 
-2018-08-07 20:14:56,424 - centgovspend_application - DEBUG - ?wpdmdl=6825.csv: not otherwise tab. 
-2018-08-07 20:14:56,693 - centgovspend_application - DEBUG - ?wpdmdl=2193.csv: not otherwise tab. 
+2019-03-24 17:06:47,936 - centgovspend_application - INFO - Working on modef.
+2019-03-24 17:06:51,703 - centgovspend_application - INFO - Working on cabinetoffice.
+2019-03-24 17:06:54,627 - centgovspend_application - INFO - Working on dftransport.
+2019-03-24 17:06:55,527 - centgovspend_application - INFO - dft-monthly-transparency-data-september-2018.csv is excluded! Verified problem.
+2019-03-24 17:06:57,155 - centgovspend_application - INFO - dft-monthly-spend-201409.csv is excluded! Verified problem.
+2019-03-24 17:07:05,155 - centgovspend_application - INFO - dft-monthly-transparency-data-may-2017.csv is excluded! Verified problem.
+2019-03-24 17:07:11,682 - centgovspend_application - INFO - Working on dohealth.
+2019-03-24 17:07:11,845 - centgovspend_application - INFO - december_18_over__25k_spend_data_to_be_published.csv is excluded! Verified problem.
+2019-03-24 17:07:13,665 - centgovspend_application - INFO - Working on dfeducation.
+2019-03-24 17:07:20,074 - centgovspend_application - INFO - dfe_spend_01apr_2012.csv is excluded! Verified problem.
+2019-03-24 17:07:25,206 - centgovspend_application - INFO - dfe_spend_03jun_2012.csv is excluded! Verified problem.
+2019-03-24 17:07:26,588 - centgovspend_application - INFO - Working on dfintdev.
+2019-03-24 17:07:27,446 - centgovspend_application - INFO - january2014.csv is excluded! Verified problem.
+2019-03-24 17:07:27,710 - centgovspend_application - INFO - may-2016.csv is excluded! Verified problem.
+2019-03-24 17:07:29,000 - centgovspend_application - INFO - feb2015.csv is excluded! Verified problem.
+2019-03-24 17:07:30,731 - centgovspend_application - INFO - Working on dfinttrade.
+2019-03-24 17:07:31,451 - centgovspend_application - INFO - Working on dworkpen.
+2019-03-24 17:08:23,409 - centgovspend_application - INFO - Working on mojust.
+2019-03-24 17:08:27,849 - centgovspend_application - INFO - Working on dcultmedsport.
+2019-03-24 17:08:29,499 - centgovspend_application - INFO - Working on ukexpfin.
+2019-03-24 17:08:31,939 - centgovspend_application - INFO - Working on dbusenind.
+2019-03-24 17:08:32,882 - centgovspend_application - INFO - Working on dfeeu.
+2019-03-24 17:08:33,171 - centgovspend_application - INFO - Working on foroff.
+2019-03-24 17:08:34,923 - centgovspend_application - INFO - publishable_november_2014_spend.csv is excluded! Verified problem.
+2019-03-24 17:08:35,657 - centgovspend_application - INFO - october_2013.csv is excluded! Verified problem.
+2019-03-24 17:08:36,411 - centgovspend_application - INFO - Working on hmtreas.
+2019-03-24 17:08:38,866 - centgovspend_application - INFO - Working on mhclg.
+2019-03-24 17:08:40,001 - centgovspend_application - INFO - Working on nioff.
+2019-03-24 17:08:40,322 - centgovspend_application - INFO - Working on scotoff.
+2019-03-24 17:08:40,323 - centgovspend_application - INFO - july-september_16_senor_officials__travel_q2.csv is excluded! Verified problem.
+2019-03-24 17:08:40,345 - centgovspend_application - INFO - january__2018_-_transparency-so.csv is excluded! Verified problem.
+2019-03-24 17:08:40,644 - centgovspend_application - INFO - februry__2018_-_transparency-so.csv is excluded! Verified problem.
+2019-03-24 17:08:40,712 - centgovspend_application - INFO - july-september_16_senior_officials_hospitality.csv is excluded! Verified problem.
+2019-03-24 17:08:40,921 - centgovspend_application - INFO - spend-over-25k-jan-2012.csv is excluded! Verified problem.
+2019-03-24 17:08:40,943 - centgovspend_application - INFO - transparency_sodecember18.csv is excluded! Verified problem.
+2019-03-24 17:08:40,984 - centgovspend_application - INFO - april_2014_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:08:41,125 - centgovspend_application - INFO - june_2017_-_transparency_-_so.csv is excluded! Verified problem.
+2019-03-24 17:08:41,195 - centgovspend_application - INFO - departmental_spend_over__25_000_january_2017.csv is excluded! Verified problem.
+2019-03-24 17:08:41,350 - centgovspend_application - INFO - october_2017_-_transparency-so.csv is excluded! Verified problem.
+2019-03-24 17:08:41,350 - centgovspend_application - INFO - august_2011_20so_20transparency.csv is excluded! Verified problem.
+2019-03-24 17:08:41,605 - centgovspend_application - INFO - Working on gldagohmcpsi.
+2019-03-24 17:08:48,153 - centgovspend_application - INFO - Working on homeoffice.
+2019-03-24 17:08:59,232 - centgovspend_application - INFO - april-2011.xls is excluded! Verified problem.
+2019-03-24 17:09:03,194 - centgovspend_application - INFO - Working on oags.
+2019-03-24 17:09:03,197 - centgovspend_application - INFO - aug_2013_oag_transparency.csv is excluded! Verified problem.
+2019-03-24 17:09:03,198 - centgovspend_application - INFO - transparency_oag_aug_18.xlsx is excluded! Verified problem.
+2019-03-24 17:09:03,226 - centgovspend_application - INFO - feb_2014_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,256 - centgovspend_application - INFO - transparency-april-2013.csv is excluded! Verified problem.
+2019-03-24 17:09:03,317 - centgovspend_application - INFO - spend_over_25k_august_2012.xls is excluded! Verified problem.
+2019-03-24 17:09:03,345 - centgovspend_application - INFO - sept_2016_-_transparency-oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,345 - centgovspend_application - INFO - oag_transparency_aug_2013.csv is excluded! Verified problem.
+2019-03-24 17:09:03,345 - centgovspend_application - INFO - dec_2014_transparency_oag.xlsx is excluded! Verified problem.
+2019-03-24 17:09:03,345 - centgovspend_application - INFO - may_2014_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,374 - centgovspend_application - INFO - december_2016_-_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,374 - centgovspend_application - INFO - spend_over_25k_june_2012.xls is excluded! Verified problem.
+2019-03-24 17:09:03,374 - centgovspend_application - INFO - nov_2015_-_transparency-oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,374 - centgovspend_application - INFO - spend_over_25k_november_2012.xls is excluded! Verified problem.
+2019-03-24 17:09:03,405 - centgovspend_application - INFO - may_2016_-_transparency-oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,405 - centgovspend_application - INFO - october_2014_-_transparency_report_-_expenses.csv is excluded! Verified problem.
+2019-03-24 17:09:03,405 - centgovspend_application - INFO - july_2015_-_transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,405 - centgovspend_application - INFO - december_2017_-_transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,405 - centgovspend_application - INFO - june_2014_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,405 - centgovspend_application - INFO - spend_over_25k_september_2012.xls is excluded! Verified problem.
+2019-03-24 17:09:03,405 - centgovspend_application - INFO - transparency_march_2013.csv is excluded! Verified problem.
+2019-03-24 17:09:03,435 - centgovspend_application - INFO - No data in transparency_oag_september_18.xlsx!
+2019-03-24 17:09:03,436 - centgovspend_application - INFO - august_2016_-_transparency-oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,436 - centgovspend_application - INFO - june_2017_-_transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,492 - centgovspend_application - INFO - spend_over_25k_may_2012.xls is excluded! Verified problem.
+2019-03-24 17:09:03,492 - centgovspend_application - INFO - june_2015_-_transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,492 - centgovspend_application - INFO - july_2014_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,553 - centgovspend_application - INFO - sept_2015_-_transparency-oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,553 - centgovspend_application - INFO - transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,553 - centgovspend_application - INFO - february_2017_-_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,554 - centgovspend_application - INFO - spend_over_25k_apr_2011_-_mar_2012.xls is excluded! Verified problem.
+2019-03-24 17:09:03,554 - centgovspend_application - INFO - nov_2013_transparency.xlsx is excluded! Verified problem.
+2019-03-24 17:09:03,554 - centgovspend_application - INFO - spend_over_25k_july_2012.xls is excluded! Verified problem.
+2019-03-24 17:09:03,554 - centgovspend_application - INFO - spend_over_25k_february_2013.xls is excluded! Verified problem.
+2019-03-24 17:09:03,554 - centgovspend_application - INFO - april_2014_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,554 - centgovspend_application - INFO - aug_2014_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,581 - centgovspend_application - INFO - oag_transparency_oct_2013.csv is excluded! Verified problem.
+2019-03-24 17:09:03,582 - centgovspend_application - INFO - feb_2016_-_transparency-oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,582 - centgovspend_application - INFO - august_2015_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,582 - centgovspend_application - INFO - jan_2016_-_transparency-oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,582 - centgovspend_application - INFO - april_2015_-_transparency-oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,582 - centgovspend_application - INFO - oag_transparency_sep_2013.csv is excluded! Verified problem.
+2019-03-24 17:09:03,665 - centgovspend_application - INFO - september_2017_-_transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,665 - centgovspend_application - INFO - november_2017_-_transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,665 - centgovspend_application - INFO - october_2017_-_transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,665 - centgovspend_application - INFO - dec_2013_transparency.xlsx is excluded! Verified problem.
+2019-03-24 17:09:03,665 - centgovspend_application - INFO - may_2013_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,665 - centgovspend_application - INFO - spend_over_25k_october_2012.xls is excluded! Verified problem.
+2019-03-24 17:09:03,719 - centgovspend_application - INFO - nov_2014_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,751 - centgovspend_application - INFO - july_2017_-_transparency_-_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,752 - centgovspend_application - INFO - march_2017_-_transparency_oag.csv is excluded! Verified problem.
+2019-03-24 17:09:03,867 - centgovspend_application - INFO - Working on defra.
+2019-03-24 17:09:08,800 - centgovspend_application - INFO - Working on charcom.
+2019-03-24 17:09:10,119 - centgovspend_application - INFO - may11.csv is excluded! Verified problem.
+2019-03-24 17:09:11,325 - centgovspend_application - INFO - Working on commarauth.
+2019-03-24 17:09:11,610 - centgovspend_application - INFO - payments_over__25k_september_17.ods is excluded! Verified problem.
+2019-03-24 17:09:11,639 - centgovspend_application - INFO - payments_over__25k_october_17.ods is excluded! Verified problem.
+2019-03-24 17:09:11,892 - centgovspend_application - INFO - spend-over-25k-june-2017.ods is excluded! Verified problem.
+2019-03-24 17:09:11,925 - centgovspend_application - INFO - spend-over-25k-may-2017.ods is excluded! Verified problem.
+2019-03-24 17:09:12,490 - centgovspend_application - INFO - Working on crownprosser.
+2019-03-24 17:09:12,529 - centgovspend_application - DEBUG - cps_expenditure_over_25k_sep13.csv: html. Delete.
+2019-03-24 17:09:12,532 - centgovspend_application - DEBUG - cps_expenditure_over_25k_aug11.csv: html. Delete.
+2019-03-24 17:09:12,535 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jan11.csv: html. Delete.
+2019-03-24 17:09:12,635 - centgovspend_application - DEBUG - cps_expenditure_over_25k_mar12.csv: html. Delete.
+2019-03-24 17:09:12,637 - centgovspend_application - DEBUG - cps_expenditure_over_25k_aug13.csv: html. Delete.
+2019-03-24 17:09:12,667 - centgovspend_application - DEBUG - cps_expenditure_over_25k_oct10.csv: html. Delete.
+2019-03-24 17:09:12,765 - centgovspend_application - DEBUG - cps_expenditure_over_25k_may11.csv: html. Delete.
+2019-03-24 17:09:12,797 - centgovspend_application - DEBUG - cps_expenditure_over_25k_apr13.csv: html. Delete.
+2019-03-24 17:09:12,800 - centgovspend_application - DEBUG - cps_expenditure_over_25k_sep11.csv: html. Delete.
+2019-03-24 17:09:12,917 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jul10.csv: html. Delete.
+2019-03-24 17:09:12,920 - centgovspend_application - DEBUG - cps_expenditure_over_25k_sep12.csv: html. Delete.
+2019-03-24 17:09:12,951 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jun13.csv: html. Delete.
+2019-03-24 17:09:12,953 - centgovspend_application - DEBUG - cps_expenditure_over_25k_feb11.csv: html. Delete.
+2019-03-24 17:09:13,226 - centgovspend_application - DEBUG - cps_expenditure_over_25k_dec10.csv: html. Delete.
+2019-03-24 17:09:13,598 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jul12.csv: html. Delete.
+2019-03-24 17:09:13,601 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jun10.csv: html. Delete.
+2019-03-24 17:09:13,603 - centgovspend_application - DEBUG - cps_expenditure_over_25k_apr11.csv: html. Delete.
+2019-03-24 17:09:13,901 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jun12.csv: html. Delete.
+2019-03-24 17:09:13,903 - centgovspend_application - DEBUG - cps_expenditure_over_25k_apr10.csv: html. Delete.
+2019-03-24 17:09:13,994 - centgovspend_application - DEBUG - cps_expenditure_over_25k_mar13.csv: html. Delete.
+2019-03-24 17:09:13,996 - centgovspend_application - DEBUG - cps_expenditure_over_25k_dec12.csv: html. Delete.
+2019-03-24 17:09:14,092 - centgovspend_application - DEBUG - cps_expenditure_over_25k_sep10.csv: html. Delete.
+2019-03-24 17:09:14,189 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jul13.csv: html. Delete.
+2019-03-24 17:09:14,191 - centgovspend_application - DEBUG - cps_expenditure_over_25k_aug12.csv: html. Delete.
+2019-03-24 17:09:14,255 - centgovspend_application - DEBUG - cps_expenditure_over_25k_feb12.csv: html. Delete.
+2019-03-24 17:09:14,257 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jul11.csv: html. Delete.
+2019-03-24 17:09:14,449 - centgovspend_application - DEBUG - cps_expenditure_over_25k_dec11.csv: html. Delete.
+2019-03-24 17:09:14,514 - centgovspend_application - DEBUG - cps_expenditure_over_25k_nov13.csv: html. Delete.
+2019-03-24 17:09:14,553 - centgovspend_application - DEBUG - cps_expenditure_over_25k_nov10.csv: html. Delete.
+2019-03-24 17:09:14,680 - centgovspend_application - DEBUG - cps_expenditure_over_25k_feb13.csv: html. Delete.
+2019-03-24 17:09:15,107 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jan13.csv: html. Delete.
+2019-03-24 17:09:15,204 - centgovspend_application - DEBUG - cps_expenditure_over_25k_may13.csv: html. Delete.
+2019-03-24 17:09:15,206 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jan12.csv: html. Delete.
+2019-03-24 17:09:15,208 - centgovspend_application - DEBUG - cps_expenditure_over_25k_nov11.csv: html. Delete.
+2019-03-24 17:09:15,241 - centgovspend_application - DEBUG - cps_expenditure_over_25k_nov12.csv: html. Delete.
+2019-03-24 17:09:15,303 - centgovspend_application - DEBUG - cps_expenditure_over_25k_apr12.csv: html. Delete.
+2019-03-24 17:09:15,456 - centgovspend_application - DEBUG - cps_expenditure_over_25k_oct12.csv: html. Delete.
+2019-03-24 17:09:15,521 - centgovspend_application - DEBUG - cps_expenditure_over_25k_mar11.csv: html. Delete.
+2019-03-24 17:09:15,645 - centgovspend_application - DEBUG - cps_expenditure_over_25k_aug10.csv: html. Delete.
+2019-03-24 17:09:15,677 - centgovspend_application - DEBUG - cps_expenditure_over_25k_dec13.csv: html. Delete.
+2019-03-24 17:09:15,710 - centgovspend_application - DEBUG - cps_expenditure_over_25k_oct13.csv: html. Delete.
+2019-03-24 17:09:15,742 - centgovspend_application - DEBUG - cps_expenditure_over_25k_may10.csv: html. Delete.
+2019-03-24 17:09:15,862 - centgovspend_application - DEBUG - cps_expenditure_over_25k_may12.csv: html. Delete.
+2019-03-24 17:09:15,925 - centgovspend_application - DEBUG - cps_expenditure_over_25k_oct11.csv: html. Delete.
+2019-03-24 17:09:15,926 - centgovspend_application - DEBUG - cps_expenditure_over_25k_jun11.csv: html. Delete.
+2019-03-24 17:09:16,129 - centgovspend_application - INFO - Working on fsa.
+2019-03-24 17:09:16,941 - centgovspend_application - INFO - Working on forcomm.
+2019-03-24 17:09:20,363 - centgovspend_application - INFO - Working on govaccdept.
+2019-03-24 17:09:21,725 - centgovspend_application - INFO - gad_nov_2016__25k_.csv is excluded! Verified problem.
+2019-03-24 17:09:22,055 - centgovspend_application - INFO - Working on hmlandreg.
+2019-03-24 17:09:24,612 - centgovspend_application - INFO - Working on hmrc.
+2019-03-24 17:09:28,197 - centgovspend_application - INFO - Working on natsavinv.
+2019-03-24 17:09:31,182 - centgovspend_application - INFO - Working on natarch.
+2019-03-24 17:09:32,176 - centgovspend_application - DEBUG - spend-over-10k-2019-01.csv: html. Delete.
+2019-03-24 17:09:33,509 - centgovspend_application - DEBUG - spend-over-10k-2019-02.csv: html. Delete.
+2019-03-24 17:09:33,912 - centgovspend_application - INFO - april2013-spend-over10k.csv is excluded! Verified problem.
+2019-03-24 17:09:34,143 - centgovspend_application - INFO - Working on offrailroad.
+2019-03-24 17:09:35,789 - centgovspend_application - INFO - Working on ofgem.
+2019-03-24 17:09:38,830 - centgovspend_application - INFO - Working on ofqual.
+2019-03-24 17:09:39,097 - centgovspend_application - INFO - Working on ofsted.
+2019-03-24 17:09:40,607 - centgovspend_application - INFO - Working on serfraud.
+2019-03-24 17:09:40,668 - centgovspend_application - INFO - wpdmdl=20440.csv is excluded! Verified problem.
+2019-03-24 17:09:40,993 - centgovspend_application - INFO - wpdmdl=6819.csv is excluded! Verified problem.
+2019-03-24 17:09:41,249 - centgovspend_application - INFO - wpdmdl=3229.csv is excluded! Verified problem.
+2019-03-24 17:09:41,308 - centgovspend_application - DEBUG - wpdmdl=21037.csv: not otherwise tab. 
+2019-03-24 17:09:41,471 - centgovspend_application - INFO - wpdmdl=2050.csv is excluded! Verified problem.
+2019-03-24 17:09:41,725 - centgovspend_application - INFO - wpdmdl=6825.csv is excluded! Verified problem.
+2019-03-24 17:09:42,114 - centgovspend_application - INFO - wpdmdl=2193.csv is excluded! Verified problem.
+2019-03-24 17:09:42,412 - centgovspend_application - DEBUG - wpdmdl=22553.csv: not otherwise tab. 
+2019-03-24 17:09:42,443 - centgovspend_application - DEBUG - wpdmdl=22555.csv: not otherwise tab. 
+2019-03-24 17:09:42,633 - centgovspend_application - INFO - Working on supcourt.
+2019-03-24 17:09:42,936 - centgovspend_application - INFO - Working on ofwat.
+2019-03-24 17:09:43,304 - centgovspend_application - INFO - prs_dat_transactions201501.csv is excluded! Verified problem.
+2019-03-24 17:09:44,028 - centgovspend_application - INFO - prs_dat_transactions201008.csv is excluded! Verified problem.
+2019-03-24 17:09:44,139 - centgovspend_application - INFO - prs_dat_transactions201206.csv is excluded! Verified problem.
+2019-03-24 17:09:44,139 - centgovspend_application - INFO - prs_dat_transactions201412.csv is excluded! Verified problem.
+2019-03-24 17:09:44,685 - centgovspend_application - INFO - prs_dat_transactions201202.csv is excluded! Verified problem.
+2019-03-24 17:09:44,826 - centgovspend_application - INFO - prs_dat_transactions201503.csv is excluded! Verified problem.
+2019-03-24 17:09:45,011 - centgovspend_application - INFO - prs_dat_transactions201110.csv is excluded! Verified problem.
+2019-03-24 17:09:45,432 - centgovspend_application - INFO - prs_dat_transactions201208.csv is excluded! Verified problem.
+2019-03-24 17:09:45,730 - centgovspend_application - INFO - prs_dat_transactions201410.csv is excluded! Verified problem.
