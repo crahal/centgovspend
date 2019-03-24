@@ -1,37 +1,39 @@
-cabinetoffice,Cabinet Office
-charcom,Charity Commission
+cabinetoffice,C.Off
+charcom,C.Com
 crownprosser,CPS
-dbusenind,DBIS
+commarauth,CMA
+dbusenind,BEIS
 dcultmedsport,DCMS
 defra,DEFRA
-dfeducation,D. Educ
-dfeeu,D. Exiting EU
-dfintdev,D. Int Dev
-dfinttrade,D. Int Trade
-dftransport,D. Trans
-dohealth,D. Health
+dfeducation,D.Ed
+dfeeu,DExEU
+dfintdev,DID
+dfinttrade,DIT
+dftransport,DT
+dohealth,DoH
 dworkpen,DWP
-forcomm,Forestry Comm
-foroff,Foreign Off
+forcomm,ForCom
+foroff,FCO
 fsa,FSA
-gldagohmcpsi,Gov Legal
-govaccdept,Gov Account
-hmlandreg,HM Land Reg
+gldagohmcpsi,G.Leg
+govaccdept,G.Acc
+hmlandreg,LR
 hmrc,HMRC
-hmtreas,HM Treasury
-homeoffice,Home Office
+hmtreas,HMT
+homeoffice,HO
 mhclg,MHCLG
-modef,M. Defense
-mojust,M. Justice
-natarch,Nat Archives
-natsavinv,Nat Sav Inv
-nioff,NI Office
-offrailroad,Off Railroad
-ofgem,Ofgem
-ofqual,Ofqual
-ofsted,Ofsted
-ofwat,Ofwat
-scotoff,Scot Office
-serfraud,Serious Fraud
-supcourt,Supreme Court
-ukexpfin,UK ExpFin
+modef,MoD
+mojust,MoJ
+natarch,NatAr
+natsavinv,NSInv
+nioff,NIO
+oags,AG
+offrailroad,ORail
+ofgem,OFGEM
+ofqual,OFQUAL
+ofsted,OFSTED
+ofwat,OFWAT
+scotoff,SO
+serfraud,SF
+supcourt,SC
+ukexpfin,UKEF

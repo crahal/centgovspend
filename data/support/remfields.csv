@@ -15,6 +15,7 @@ originalnarrative
 accountname
 itemtext
 period
+idepartment
 postalcode
 description
 entity
@@ -53,7 +54,6 @@ suppliersitepostcode
 suppliersitecode
 tlbcode
 expendituredescription
-paymentdate
 supplierclass
 suppliercode
 blb

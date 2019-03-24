@@ -11,6 +11,7 @@ finaltotal,amount
 psamount,amount
 billingamount,amount
 total,amount
+amountinclvat,amount
 value,amount
 £,amount
 amountpss,amount
@@ -24,8 +25,9 @@ amounts,amount
 sumofamount,amount
 spend,amount
 datepaid,date
-datepaidonstatement,date
 paiddate,date
+paymentdate,date
+datepaidonstatement,date
 posteddate,date
 transactiondate,date
 inputdate,date
