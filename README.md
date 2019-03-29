@@ -58,7 +58,7 @@ And a more sociological track which shows a range of analysis related to the off
 
 <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/psc_age.png" width="400"/> <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/officers_age.png" width="400"/> <img src="https://github.com/crahal/centgovspend/blob/master/compile/figures/countries_and_nationalities.png" width="800"/>
 
-_Next update of scrapers: 1/10/2018_
+_Next update of scrapers: 1/07/2019_
 
 #### License
 
