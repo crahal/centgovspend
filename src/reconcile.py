@@ -10,6 +10,8 @@ from time import gmtime, strftime
 import json
 import logging
 import csv
+import base64
+import hashlib
 tqdm.monitor_interval = 0
 
 
@@ -167,14 +169,19 @@ def reconcile_dataframe(rawpath, uniquesups):
             os.path.join(__file__, '../..', 'data',
                          'output', 'master',
                          'Reconciled_Suppliers.tsv')), 'w') as tsvfile:
-            basic_suppliers = csv.writer(tsvfile, delimiter='\t', lineterminator='\n')
-            basic_suppliers.writerow(['RawSupplier','First ID','First Match',
-                             'First Score','Second ID','Second Match',
-                             'Second Score','Third ID','Third Match',
-                             'Third Score','Company Status','Date of Creation',
-                             'Jurisdiction','Address Line 1','Address Line 2',
-                             'Locality','Postcode','Disputed Office','SIC Code',
-                             'Type','Best ID','Best Match'])
+            basic_suppliers = csv.writer(tsvfile, delimiter='\t',
+                                         lineterminator='\n')
+            basic_suppliers.writerow(['RawSupplier', 'First ID',
+                                      'First Match', 'First Score',
+                                      'Second ID', 'Second Match',
+                                      'Second Score', 'Third ID',
+                                      'Third Match', 'Third Score',
+                                      'Company Status', 'Date of Creation',
+                                      'Jurisdiction', 'Address Line 1',
+                                      'Address Line 2', 'Locality',
+                                      'Postcode', 'Disputed Office',
+                                      'SIC Code', 'Type', 'Best ID',
+                                      'Best Match'])
         pbar = tqdm(uniquesups['supplier_upper'].tolist())
     if os.path.exists(os.path.abspath(
         os.path.join(__file__, '../..', 'data',
@@ -183,13 +190,12 @@ def reconcile_dataframe(rawpath, uniquesups):
         with open(os.path.abspath(
             os.path.join(__file__, '../..', 'data', 'output', 'master',
                          'Reconciled_Officers.tsv')), 'w') as tsvfile:
-            officers_data = csv.writer(tsvfile, delimiter='\t', lineterminator='\n')
-            officers_data.writerow(['Best ID','Best Match','Name','Officer ID',
-                                    'Appointed','Resigned','Occupation',
-                                    'Officer Role','Date of Birth',
-                                    'Country of Residence','Nationality',
-                                    'address_line_1','address_line_2',
-                                    'locality','postal_code','region'])
+            officers_data = csv.writer(tsvfile,
+                                       delimiter='\t',
+                                       lineterminator='\n')
+            officers_data.writerow(['Best ID', 'Best Match', 'New_ID',
+                                    'Appointed', 'Resigned', 'Date of Birth',
+                                    'Country of Residence', 'Nationality'])
     if os.path.exists(os.path.abspath(
         os.path.join(__file__, '../..', 'data', 'output', 'master',
                      'Reconciled_PSC.tsv'))) is False:
@@ -197,19 +203,18 @@ def reconcile_dataframe(rawpath, uniquesups):
             os.path.join(__file__, '../..', 'data', 'output', 'master',
                          'Reconciled_PSC.tsv')), 'w') as tsvfile:
             psc_data = csv.writer(tsvfile, delimiter='\t', lineterminator='\n')
-            psc_data.writerow(['Best ID','Best Match','Name','etag',
-                               'country_registered','legal_authority',
-                               'legal_form','place_registered',
-                               'registration_number','kind',
-                               'natures_of_control','notified_on',
-                               'address_line_1','address_line_2', 'locality',
-                               'postal_code','region', 'premises',
-                               'country_of_residence', 'nationality','forename',
-                               'middle_name', 'surname','title'])
+            psc_data.writerow(['Best ID', 'Best Match',
+                               'registration_number',
+                               'country_of_residence',
+                               'date_of_birth',
+                               'nationality'])
     for i in pbar:
         i = unidecode(i)
         pbar.set_description("Processing %s" % i)
-        RawSupplier = i.replace('\t', '').replace('\n', '').replace('\r', '').strip().upper()
+        RawSupplier = i.replace('\t',
+                                '').replace('\n',
+                                            '').replace('\r',
+                                                        '').strip().upper()
         js = get_opencorporates(unidecode(i), 3)
         try:
             First_ID = js['result'][0]['id']
@@ -298,16 +303,20 @@ def reconcile_dataframe(rawpath, uniquesups):
             Type = 'N/A'
         with open(os.path.abspath(
             os.path.join(__file__, '../..', 'data', 'output', 'master',
-            'Reconciled_Suppliers.tsv')), 'a') as tsvfile:
-            basic_suppliers = csv.writer(tsvfile, delimiter='\t', lineterminator='\n')
-            basic_suppliers.writerow([RawSupplier, First_ID, First_Match,
-                                      str(First_Score), Second_ID, Second_Match,
-                                      str(Second_Score), Third_ID, Third_Match,
-                                      str(Third_Score), Company_Status,
-                                      Date_of_Creation, Jurisdiction,
-                                      Address_Line_1, Address_Line_2,
-                                      Locality, Postcode, str(Disputed_Office),
-                                      str(SIC_Code), Type, bestid, bestmatch])
+                         'Reconciled_Suppliers.tsv')), 'a') as tsvfile:
+            basic_suppliers = csv.writer(tsvfile,
+                                         delimiter='\t',
+                                         lineterminator='\n')
+            basic_suppliers.writerow([RawSupplier, First_ID,
+                                      First_Match, str(First_Score),
+                                      Second_ID, Second_Match,
+                                      str(Second_Score), Third_ID,
+                                      Third_Match, str(Third_Score),
+                                      Company_Status, Date_of_Creation,
+                                      Jurisdiction, Address_Line_1,
+                                      Address_Line_2, Locality, Postcode,
+                                      str(Disputed_Office), str(SIC_Code),
+                                      Type, bestid, bestmatch])
         if bestid != 'N/A':
             try:
                 offjs = ch_officers(bestid.replace('/companies/gb/', ''), i)
@@ -315,13 +324,13 @@ def reconcile_dataframe(rawpath, uniquesups):
                     for page in offjs:
                         for off in page['items']:
                             try:
-                                Name = off['name']
+                                New_ID = base64.\
+                                         b64encode(hashlib.
+                                                   sha1(off['name'].
+                                                        encode('UTF-8') +
+                                                        str(off['date_of_birth']).encode('UTF-8')).digest())
                             except Exception as e:
-                                Name = 'N/A'
-                            try:
-                                Officer_ID = off['links']['officer']['appointments']
-                            except Exception as e:
-                                Officer_ID = 'N/A'
+                                New_ID = 'N/A'
                             try:
                                 Appointed = off['appointed_on']
                             except Exception as e:
@@ -335,14 +344,6 @@ def reconcile_dataframe(rawpath, uniquesups):
                             except Exception as e:
                                 Nationality = 'N/A'
                             try:
-                                Occupation = off['occupation']
-                            except Exception as e:
-                                Occupation = 'N/A'
-                            try:
-                                Officer_Role = off['officer_role']
-                            except Exception as e:
-                                Officer_Role = 'N/A'
-                            try:
                                 Date_of_Birth = str(off['date_of_birth'])
                             except Exception as e:
                                 Date_of_Birth = 'N/A'
@@ -350,26 +351,6 @@ def reconcile_dataframe(rawpath, uniquesups):
                                 Country_of_Residence = off['country_of_residence']
                             except Exception as e:
                                 Country_of_Residence = 'N/A'
-                            try:
-                                address_line_1 = off['address']['address_line_1']
-                            except Exception as e:
-                                address_line_1 = 'N/A'
-                            try:
-                                address_line_2 = off['address']['address_line_2']
-                            except Exception as e:
-                                address_line_2 = 'N/A'
-                            try:
-                                locality = off['address']['locality']
-                            except Exception as e:
-                                locality = 'N/A'
-                            try:
-                                postal_code = off['address']['postal_code']
-                            except Exception as e:
-                                postal_code = 'N/A'
-                            try:
-                                region = off['address']['region']
-                            except Exception as e:
-                                region = 'N/A'
                             with open(os.path.abspath(
                                 os.path.join(__file__, '../..', 'data',
                                              'output', 'master',
@@ -378,17 +359,11 @@ def reconcile_dataframe(rawpath, uniquesups):
                                 officers_data = csv.writer(tsvfile,
                                                            delimiter='\t',
                                                            lineterminator='\n')
-                                officers_data.writerow([bestid, bestmatch, Name,
-                                                        Officer_ID, Appointed,
-                                                        Resigned, Occupation,
-                                                        Officer_Role,
+                                officers_data.writerow([bestid, bestmatch,
+                                                        New_ID, Appointed, Resigned,
                                                         Date_of_Birth,
                                                         Country_of_Residence,
-                                                        Nationality,
-                                                        address_line_1,
-                                                        address_line_2,
-                                                        locality, postal_code,
-                                                        region])
+                                                        Nationality])
             except Exception as e:
                 module_logger.debug(
                     'Something wrong with officers API: ' + i + ': ' + str(e))
@@ -400,70 +375,9 @@ def reconcile_dataframe(rawpath, uniquesups):
                     for page in pscjs:
                         for psc in page['items']:
                             try:
-                                Name = psc['name']
-                            except KeyError:
-                                Name = 'N/A'
-                            try:
-                                etag = psc['etag']
-                            except KeyError:
-                                etag = 'N/A'
-                            try:
-                                country_registered = psc['identification']['country_registered']
-                            except KeyError:
-                                country_registered = 'N/A'
-                            try:
-                                legal_authority = psc['identification']['legal_authority']
-                            except KeyError:
-                                legal_authority = 'N/A'
-                            try:
-                                legal_form = psc['identification']['legal_form']
-                            except KeyError:
-                                legal_form = 'N/A'
-                            try:
-                                place_registered = psc['identification']['place_registered']
-                            except KeyError:
-                                place_registered = 'N/A'
-                            try:
                                 registration_number = psc['identification']['registration_number']
                             except KeyError:
                                 registration_number = 'N/A'
-                            try:
-                                kind = psc['kind']
-                            except KeyError:
-                                kind = 'N/A'
-                            try:
-                                natures_of_control = str(
-                                    psc['natures_of_control'])
-                            except KeyError:
-                                natures_of_control = 'N/A'
-                            try:
-                                notified_on = psc['notified_on']
-                            except KeyError:
-                                notified_on = 'N/A'
-                            try:
-                                address_line_1 = psc['address']['address_line_1']
-                            except KeyError:
-                                address_line_1 = 'N/A'
-                            try:
-                                address_line_2 = psc['address']['address_line_2']
-                            except KeyError:
-                                address_line_2 = 'N/A'
-                            try:
-                                locality = psc['address']['locality']
-                            except KeyError:
-                                locality = 'N/A'
-                            try:
-                                postal_code = psc['address']['postal_code']
-                            except KeyError:
-                                postal_code = 'N/A'
-                            try:
-                                region = psc['address']['region']
-                            except KeyError:
-                                region = 'N/A'
-                            try:
-                                premises = psc['address']['premises']
-                            except KeyError:
-                                premises = 'N/A'
                             try:
                                 country_of_residence = psc['country_of_residence']
                             except KeyError:
@@ -473,21 +387,9 @@ def reconcile_dataframe(rawpath, uniquesups):
                             except KeyError:
                                 nationality = 'N/A'
                             try:
-                                forename = psc['name_elements']['forename']
+                                date_of_birth = psc['name_elements']['date_of_birth']
                             except KeyError:
-                                forename = 'N/A'
-                            try:
-                                middle_name = psc['name_elements']['middle_name']
-                            except KeyError:
-                                middle_name = 'N/A'
-                            try:
-                                surname = psc['name_elements']['surname']
-                            except KeyError:
-                                surname = 'N/A'
-                            try:
-                                title = psc['name_elements']['title ']
-                            except KeyError:
-                                title = 'N/A'
+                                date_of_birth = 'N/A'
                             with open(os.path.abspath(
                                 os.path.join(__file__, '../..', 'data',
                                              'output', 'master',
@@ -495,19 +397,11 @@ def reconcile_dataframe(rawpath, uniquesups):
                                       'a') as tsvfile:
                                 psc_data = csv.writer(tsvfile, delimiter='\t',
                                                       lineterminator='\n')
-                                psc_data.writerow([bestid, bestmatch, Name,
-                                                   etag, country_registered,
-                                                   legal_authority, legal_form,
-                                                   place_registered,
+                                psc_data.writerow([bestid, bestmatch,
                                                    registration_number,
-                                                   kind, natures_of_control,
-                                                   notified_on, address_line_1,
-                                                   address_line_2, locality,
-                                                   postal_code, region,
-                                                   premises,
                                                    country_of_residence,
-                                                   nationality, forename,
-                                                   middle_name, surname, title])
+                                                   nationality,
+                                                   date_of_birth])
             except Exception as e:
                 module_logger.debug(
                     'Something wrong with PSC API: ' + i + ': ' + str(e))

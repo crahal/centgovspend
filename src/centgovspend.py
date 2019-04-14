@@ -8,8 +8,8 @@ Options:    depttype=ministerial    : only scrape/parse ministerial depts
             noreconcile             : dont match and merge with opencorporates,
                                       companies house, or (later) opencalais
                                       (default = do it)
-Links last updated: 10/04/2018
-Links next updated: 01/07/2018.
+Links last updated: 1/04/2019
+Links next updated: 01/07/2019.
 '''
 
 import os
