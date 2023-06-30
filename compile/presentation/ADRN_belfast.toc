@@ -1,7 +1,0 @@
-\beamer@sectionintoc {1}{Title Page}{1}{0}{1}
-\beamer@sectionintoc {2}{Introduction}{2}{0}{2}
-\beamer@sectionintoc {3}{Data}{4}{0}{3}
-\beamer@sectionintoc {4}{centgovspend}{5}{0}{4}
-\beamer@sectionintoc {5}{Cleaned Database}{10}{0}{5}
-\beamer@sectionintoc {6}{Social Stratification}{13}{0}{6}
-\beamer@sectionintoc {7}{Conclusion}{18}{0}{7}
